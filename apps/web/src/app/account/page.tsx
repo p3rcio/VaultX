@@ -318,7 +318,7 @@ export default function AccountPage() {
             </div>
 
             {/* Danger zone */}
-            <div className="bg-surface rounded-lg border border-error/30 overflow-hidden">
+            <div id="danger" className="bg-surface rounded-lg border border-error/30 overflow-hidden">
               <div className="px-6 py-4 border-b border-error/20">
                 <h2 className="text-sm font-semibold text-error">Danger Zone</h2>
               </div>

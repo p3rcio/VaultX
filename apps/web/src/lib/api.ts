@@ -102,4 +102,7 @@ export const api = {
     new_kdf_iterations: number;
   }) => request("/users/me/change-password", { method: "POST", body: JSON.stringify(body) }),
   deleteAccount: () => request("/users/me", { method: "DELETE" }),
+  getPreferences: () => request("/users/me/preferences"),
+  updatePreferences: (body: { default_share_expiry_days?: number; auto_logout_minutes?: number }) =>
+    request("/users/me/preferences", { method: "PATCH", body: JSON.stringify(body) }),
 };

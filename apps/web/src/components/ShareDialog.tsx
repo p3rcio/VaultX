@@ -20,7 +20,19 @@ interface Props {
 
 export default function ShareDialog({ fileId, wrappedKey, onClose, onCreated }: Props) {
   const { umk } = useAuth();
-  const [days, setDays] = useState(7);
+
+  // read the user's saved default expiry from localStorage (set in Settings page)
+  function getDefaultDays(): number {
+    try {
+      const saved = localStorage.getItem("vaultx_share_expiry_days");
+      const n = saved ? parseInt(saved, 10) : 7;
+      return [1, 3, 7, 14, 30].includes(n) ? n : 7;
+    } catch {
+      return 7;
+    }
+  }
+
+  const [days, setDays] = useState(() => getDefaultDays());
   const [shareUrl, setShareUrl] = useState("");
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState("");

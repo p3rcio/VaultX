@@ -24,7 +24,16 @@ import {
 } from "./crypto";
 import type { User, KeyBundle } from "@vaultx/shared";
 
-const INACTIVITY_TIMEOUT = 30 * 60 * 1000; // 30 minutes of inactivity triggers auto-logout
+// reads the user's saved preference, falling back to 30 minutes
+function getInactivityTimeout(): number {
+  try {
+    const saved = localStorage.getItem("vaultx_auto_logout_minutes");
+    const minutes = saved ? parseInt(saved, 10) : 30;
+    return (isNaN(minutes) ? 30 : minutes) * 60 * 1000;
+  } catch {
+    return 30 * 60 * 1000;
+  }
+}
 const KDF_ITERATIONS = 600_000;
 
 interface AuthState {
@@ -61,7 +70,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       clearTimeout(timer);
       timer = setTimeout(() => {
         doLogout();
-      }, INACTIVITY_TIMEOUT);
+      }, getInactivityTimeout());
     };
 
     const events = ["mousedown", "keydown", "scroll", "touchstart"];
