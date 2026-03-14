@@ -40,8 +40,10 @@ export function fromBase64Url(s: string): ArrayBuffer {
   return fromBase64(b64);
 }
 
-function randomBytes(n: number): Uint8Array {
-  return crypto.getRandomValues(new Uint8Array(n)); // cryptographically secure, not Math.random
+function randomBytes(n: number): Uint8Array<ArrayBuffer> {
+  // new Uint8Array(n) is always backed by a plain ArrayBuffer, not SharedArrayBuffer
+  // crypto.getRandomValues fills it in place and returns it with the same type
+  return crypto.getRandomValues(new Uint8Array(n));
 }
 
 /* ── KEK derivation (from password) ──────────────────── */
@@ -154,14 +156,14 @@ export async function unwrapFileKey(
 // sharing without breaking zero-knowledge was the trickiest part to get right
 // the idea: generate a random secret, put it in the URL, wrap the file key with it
 // server only stores a hash of the secret so a DB leak doesn't expose the share links
-export function generateShareSecret(): { raw: Uint8Array; token: string } {
+export function generateShareSecret(): { raw: Uint8Array<ArrayBuffer>; token: string } {
   const raw = randomBytes(32);
   return { raw, token: toBase64Url(raw.buffer) };
 }
 
 // SHA-256 hash of the token is stored in the DB instead of the raw token
 // someone with DB access can't reconstruct valid share URLs from the hash
-export async function hashShareToken(raw: Uint8Array): Promise<string> {
+export async function hashShareToken(raw: Uint8Array<ArrayBuffer>): Promise<string> {
   const hash = await crypto.subtle.digest("SHA-256", raw);
   return Array.from(new Uint8Array(hash))
     .map((b) => b.toString(16).padStart(2, "0"))
@@ -169,7 +171,7 @@ export async function hashShareToken(raw: Uint8Array): Promise<string> {
 }
 
 // turns raw secret bytes into a proper CryptoKey for AES-KW operations
-async function importShareKey(raw: Uint8Array): Promise<CryptoKey> {
+async function importShareKey(raw: Uint8Array<ArrayBuffer>): Promise<CryptoKey> {
   return crypto.subtle.importKey(
     "raw",
     raw,
@@ -181,7 +183,7 @@ async function importShareKey(raw: Uint8Array): Promise<CryptoKey> {
 
 export async function wrapFileKeyForShare(
   fileKey: CryptoKey,
-  shareRaw: Uint8Array
+  shareRaw: Uint8Array<ArrayBuffer>
 ): Promise<string> {
   const shareKey = await importShareKey(shareRaw);
   const wrapped = await crypto.subtle.wrapKey("raw", fileKey, shareKey, "AES-KW");
@@ -192,7 +194,7 @@ export async function wrapFileKeyForShare(
 // the recipient doesn't need an account, just the URL
 export async function unwrapFileKeyFromShare(
   wrappedB64: string,
-  shareRaw: Uint8Array
+  shareRaw: Uint8Array<ArrayBuffer>
 ): Promise<CryptoKey> {
   const shareKey = await importShareKey(shareRaw);
   return crypto.subtle.unwrapKey(
