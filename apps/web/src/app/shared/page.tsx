@@ -1,4 +1,4 @@
-// shared links page — lists all share links created by the current user with status badges
+// shared links page — tabbed view of active and expired share links
 "use client";
 
 import { useState, useEffect } from "react";
@@ -6,6 +6,7 @@ import { useRouter } from "next/navigation";
 import Link from "next/link";
 import { useAuth } from "@/lib/auth-context";
 import { api } from "@/lib/api";
+import Sidebar from "@/components/Sidebar";
 
 interface Share {
   id: string;
@@ -17,11 +18,27 @@ interface Share {
   disabled_at: string | null;
 }
 
+function isExpired(s: Share): boolean { return new Date(s.expires_at) < new Date(); }
+
+function ExpiryBadge({ share }: { share: Share }) {
+  const expired = isExpired(share);
+  const disabled = !!share.disabled_at;
+
+  // days until expiry for "expiring soon" state
+  const daysLeft = Math.ceil((new Date(share.expires_at).getTime() - Date.now()) / (1000 * 60 * 60 * 24));
+
+  if (disabled) return <span className="text-xs font-medium rounded-full px-2.5 py-0.5 bg-error/15 text-error">Disabled</span>;
+  if (expired) return <span className="text-xs font-medium rounded-full px-2.5 py-0.5 bg-error/15 text-error">Expired</span>;
+  if (daysLeft <= 3) return <span className="text-xs font-medium rounded-full px-2.5 py-0.5 bg-warning/15 text-warning">Expires in {daysLeft}d</span>;
+  return <span className="text-xs font-medium rounded-full px-2.5 py-0.5 bg-success/15 text-success">Active</span>;
+}
+
 export default function SharedPage() {
   const { user, loading: authLoading } = useAuth();
   const router = useRouter();
   const [shares, setShares] = useState<Share[]>([]);
   const [loading, setLoading] = useState(true);
+  const [activeTab, setActiveTab] = useState<"active" | "expired">("active");
 
   useEffect(() => {
     if (!authLoading && !user) router.replace("/login");
@@ -43,93 +60,127 @@ export default function SharedPage() {
     if (!confirm("Disable this share link?")) return;
     try {
       await api.disableShare(shareId);
-      fetchShares(); // refresh the list after disabling
+      fetchShares();
     } catch (err: any) {
       alert(err.message);
     }
   }
 
-  // a share is expired if its expiry date is in the past
-  function isExpired(s: Share): boolean {
-    return new Date(s.expires_at) < new Date();
-  }
-
   if (authLoading || loading) {
     return (
-      <div className="flex items-center justify-center min-h-screen">
-        <p className="text-gray-400">Loading...</p>
+      <div className="flex items-center justify-center min-h-screen bg-primary">
+        <div className="flex flex-col items-center gap-3">
+          <div className="w-8 h-8 rounded-full border-2 border-accent border-t-transparent animate-spin" aria-hidden="true" />
+          <p className="text-on-surface-muted text-sm">Loading...</p>
+        </div>
       </div>
     );
   }
 
+  const activeShares = shares.filter((s) => !isExpired(s) && !s.disabled_at);
+  const inactiveShares = shares.filter((s) => isExpired(s) || !!s.disabled_at);
+  const displayShares = activeTab === "active" ? activeShares : inactiveShares;
+
   return (
-    <div className="min-h-screen bg-gray-50">
-      <nav className="bg-white border-b px-4 py-3 flex items-center gap-4">
-        <Link href="/dashboard" className="text-brand-600 hover:underline text-sm">
-          &larr; Dashboard
-        </Link>
-        <h1 className="text-lg font-bold text-brand-600">VaultX</h1>
-      </nav>
-
-      <main className="max-w-3xl mx-auto px-4 py-6">
-        <h2 className="text-xl font-semibold mb-4">My Shared Links</h2>
-
-        {shares.length === 0 ? (
-          <p className="text-gray-400 text-center py-8">
-            You haven&apos;t shared any files yet.
-          </p>
-        ) : (
-          <div className="space-y-3">
-            {shares.map((s) => {
-              const expired = isExpired(s);
-              const disabled = !!s.disabled_at;
-              const active = !expired && !disabled;
-
-              return (
-                <div
-                  key={s.id}
-                  className="bg-white rounded-lg border p-4 flex items-center justify-between"
-                >
-                  <div>
-                    <Link
-                      href={`/files/${s.file_id}`}
-                      className="font-medium text-brand-600 hover:underline"
-                    >
-                      {s.file_name}
-                    </Link>
-                    <p className="text-xs text-gray-400 mt-1">
-                      Created {new Date(s.created_at).toLocaleDateString()} · Expires{" "}
-                      {new Date(s.expires_at).toLocaleDateString()}
-                    </p>
-                  </div>
-
-                  <div className="flex items-center gap-3">
-                    {/* colour-coded badge so the status is obvious at a glance */}
-                    <span
-                      className={`text-xs font-semibold px-2 py-1 rounded ${
-                        active
-                          ? "bg-green-100 text-green-700"
-                          : "bg-red-100 text-red-700"
-                      }`}
-                    >
-                      {disabled ? "Disabled" : expired ? "Expired" : "Active"}
-                    </span>
-
-                    {active && (
-                      <button
-                        onClick={() => handleDisable(s.id)}
-                        className="text-red-600 hover:text-red-800 text-sm"
-                      >
-                        Disable
-                      </button>
-                    )}
-                  </div>
-                </div>
-              );
-            })}
+    <div className="flex bg-primary">
+      <Sidebar />
+      <div className="main-with-sidebar">
+        <header className="sticky top-0 z-20 bg-primary/80 backdrop-blur-sm border-b border-white/5 py-4">
+          <div className="max-w-4xl mx-auto px-8">
+            <h1 className="text-xl font-semibold text-on-surface">My Shares</h1>
           </div>
-        )}
-      </main>
+        </header>
+
+        <main className="py-8">
+          <div className="max-w-4xl mx-auto px-8">
+          {/* Underline tabs */}
+          <div className="flex gap-6 border-b border-white/10 mb-6" role="tablist">
+            <button
+              role="tab"
+              aria-selected={activeTab === "active"}
+              onClick={() => setActiveTab("active")}
+              className={`pb-3 text-sm font-medium border-b-2 transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-accent rounded-t
+                ${activeTab === "active"
+                  ? "border-accent text-accent"
+                  : "border-transparent text-on-surface-muted hover:text-on-surface"}`}
+            >
+              Active
+              {activeShares.length > 0 && (
+                <span className={`ml-2 text-xs rounded-full px-2 py-0.5 ${activeTab === "active" ? "bg-accent/15 text-accent" : "bg-surface-high text-on-surface-muted"}`}>
+                  {activeShares.length}
+                </span>
+              )}
+            </button>
+            <button
+              role="tab"
+              aria-selected={activeTab === "expired"}
+              onClick={() => setActiveTab("expired")}
+              className={`pb-3 text-sm font-medium border-b-2 transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-accent rounded-t
+                ${activeTab === "expired"
+                  ? "border-accent text-accent"
+                  : "border-transparent text-on-surface-muted hover:text-on-surface"}`}
+            >
+              Expired / Disabled
+              {inactiveShares.length > 0 && (
+                <span className={`ml-2 text-xs rounded-full px-2 py-0.5 ${activeTab === "expired" ? "bg-accent/15 text-accent" : "bg-surface-high text-on-surface-muted"}`}>
+                  {inactiveShares.length}
+                </span>
+              )}
+            </button>
+          </div>
+
+          {displayShares.length === 0 ? (
+            <div className="flex flex-col items-center justify-center py-20 text-center">
+              <div className="w-14 h-14 rounded-xl bg-accent/10 flex items-center justify-center mb-4" aria-hidden="true">
+                <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="#2563EB" strokeWidth="1.5">
+                  <circle cx="18" cy="5" r="3"/><circle cx="6" cy="12" r="3"/><circle cx="18" cy="19" r="3"/>
+                  <line x1="8.59" y1="13.51" x2="15.42" y2="17.49"/>
+                  <line x1="15.41" y1="6.51" x2="8.59" y2="10.49"/>
+                </svg>
+              </div>
+              <p className="text-sm text-on-surface-muted">
+                {activeTab === "active" ? "No active share links." : "No expired or disabled links."}
+              </p>
+            </div>
+          ) : (
+            <div className="space-y-2">
+              {displayShares.map((s) => {
+                const active = !isExpired(s) && !s.disabled_at;
+                return (
+                  <div key={s.id} className="bg-surface rounded-lg border border-white/5 px-5 py-4 flex items-center gap-4 hover:border-white/10 transition-colors">
+                    <div className="w-9 h-9 rounded-md bg-accent/10 flex items-center justify-center flex-shrink-0" aria-hidden="true">
+                      <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="#2563EB" strokeWidth="2">
+                        <path d="M13 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V9z"/>
+                        <polyline points="13 2 13 9 20 9"/>
+                      </svg>
+                    </div>
+                    <div className="flex-1 min-w-0">
+                      <Link href={`/files/${s.file_id}`} className="text-sm font-medium text-on-surface hover:text-accent transition-colors truncate block focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-accent rounded">
+                        {s.file_name}
+                      </Link>
+                      <p className="text-xs text-on-surface-muted mt-0.5">
+                        Created {new Date(s.created_at).toLocaleDateString()} · Expires {new Date(s.expires_at).toLocaleDateString()}
+                      </p>
+                    </div>
+                    <div className="flex items-center gap-3 flex-shrink-0">
+                      <ExpiryBadge share={s} />
+                      {active && (
+                        <button
+                          onClick={() => handleDisable(s.id)}
+                          className="text-xs text-on-surface-muted hover:text-error transition-colors px-2 py-1 rounded hover:bg-error/10 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-error"
+                        >
+                          Disable
+                        </button>
+                      )}
+                    </div>
+                  </div>
+                );
+              })}
+            </div>
+          )}
+          </div>
+        </main>
+      </div>
     </div>
   );
 }

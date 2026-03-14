@@ -1,4 +1,4 @@
-// FileList.tsx — file table with debounced search and tag filter dropdown
+// FileList.tsx — responsive card grid of files with debounced search and tag filter
 "use client";
 
 import { useState, useEffect, useCallback } from "react";
@@ -15,7 +15,37 @@ interface FileEntry {
 }
 
 interface Props {
-  refreshKey?: number; // increment to trigger a re-fetch from the parent
+  refreshKey?: number;
+}
+
+// maps MIME type to a coloured badge label
+function fileTypeBadge(mime: string): { label: string; color: string } {
+  if (mime.includes("pdf")) return { label: "PDF", color: "bg-red-500/15 text-red-400" };
+  if (mime.startsWith("image/")) return { label: "IMG", color: "bg-accent/15 text-accent" };
+  if (mime.startsWith("video/")) return { label: "VID", color: "bg-purple-500/15 text-purple-400" };
+  if (mime.startsWith("audio/")) return { label: "AUD", color: "bg-pink-500/15 text-pink-400" };
+  if (mime.includes("zip") || mime.includes("tar") || mime.includes("compressed")) return { label: "ZIP", color: "bg-yellow-500/15 text-yellow-400" };
+  if (mime.includes("spreadsheet") || mime.includes("excel") || mime.includes("csv")) return { label: "XLS", color: "bg-green-500/15 text-green-400" };
+  if (mime.includes("presentation")) return { label: "PPT", color: "bg-orange-500/15 text-orange-400" };
+  if (mime.startsWith("text/") || mime.includes("javascript") || mime.includes("typescript") || mime.includes("json")) return { label: "CODE", color: "bg-accent/15 text-accent-hover" };
+  if (mime.includes("word") || mime.includes("document")) return { label: "DOC", color: "bg-blue-400/15 text-blue-300" };
+  return { label: "FILE", color: "bg-surface-high text-on-surface-muted" };
+}
+
+function formatSize(bytes: number): string {
+  if (bytes < 1024) return `${bytes} B`;
+  if (bytes < 1024 * 1024) return `${(bytes / 1024).toFixed(1)} KB`;
+  if (bytes < 1024 * 1024 * 1024) return `${(bytes / (1024 * 1024)).toFixed(1)} MB`;
+  return `${(bytes / (1024 * 1024 * 1024)).toFixed(2)} GB`;
+}
+
+function FileIcon({ mime }: { mime: string }) {
+  const { label, color } = fileTypeBadge(mime);
+  return (
+    <div className={`w-12 h-12 rounded-lg flex items-center justify-center text-xs font-bold tracking-wide ${color}`} aria-hidden="true">
+      {label}
+    </div>
+  );
 }
 
 export default function FileList({ refreshKey }: Props) {
@@ -23,6 +53,7 @@ export default function FileList({ refreshKey }: Props) {
   const [search, setSearch] = useState("");
   const [tagFilter, setTagFilter] = useState("");
   const [loading, setLoading] = useState(true);
+  const [searchInput, setSearchInput] = useState("");
 
   const fetchFiles = useCallback(async () => {
     setLoading(true);
@@ -36,109 +67,99 @@ export default function FileList({ refreshKey }: Props) {
     }
   }, [search, tagFilter]);
 
-  useEffect(() => {
-    fetchFiles();
-  }, [fetchFiles, refreshKey]);
+  useEffect(() => { fetchFiles(); }, [fetchFiles, refreshKey]);
 
-  // debounce: wait 300ms after the user stops typing before firing the API request
-  // firing on every keypress would hammer the server unnecessarily
-  const [searchInput, setSearchInput] = useState("");
+  // debounce search — wait 300ms after typing before firing API
   useEffect(() => {
     const timer = setTimeout(() => setSearch(searchInput), 300);
-    return () => clearTimeout(timer); // cancel if the user types again before the timer fires
+    return () => clearTimeout(timer);
   }, [searchInput]);
 
-  function formatSize(bytes: number): string {
-    if (bytes < 1024) return `${bytes} B`;
-    if (bytes < 1024 * 1024) return `${(bytes / 1024).toFixed(1)} KB`;
-    if (bytes < 1024 * 1024 * 1024) return `${(bytes / (1024 * 1024)).toFixed(1)} MB`;
-    return `${(bytes / (1024 * 1024 * 1024)).toFixed(2)} GB`;
-  }
+  const allTags = Array.from(new Set(files.flatMap((f) => f.tags.map((t) => t.tag_name)))).sort();
 
-  // collect all tag names across all files, deduplicate with Set, then sort alphabetically
-  const allTags = Array.from(
-    new Set(files.flatMap((f) => f.tags.map((t) => t.tag_name)))
-  ).sort();
+  if (loading) {
+    return (
+      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-4">
+        {[...Array(8)].map((_, i) => (
+          <div key={i} className="bg-surface rounded-lg h-40 animate-pulse border border-white/5" aria-hidden="true" />
+        ))}
+      </div>
+    );
+  }
 
   return (
     <div>
-      {/* Search + filter bar */}
-      <div className="flex flex-col sm:flex-row gap-2 mb-4">
-        <input
-          type="search"
-          placeholder="Search files..."
-          value={searchInput}
-          onChange={(e) => setSearchInput(e.target.value)}
-          className="flex-1 border rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-brand-500"
-          aria-label="Search files"
-        />
+      {/* Filter bar */}
+      <div className="flex flex-col sm:flex-row gap-3 mb-6">
+        <div className="relative flex-1">
+          <svg className="absolute left-3 top-1/2 -translate-y-1/2 text-on-surface-muted" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" aria-hidden="true">
+            <circle cx="11" cy="11" r="8"/><line x1="21" y1="21" x2="16.65" y2="16.65"/>
+          </svg>
+          <input
+            type="search"
+            placeholder="Filter files..."
+            value={searchInput}
+            onChange={(e) => setSearchInput(e.target.value)}
+            className="w-full bg-surface border border-white/10 rounded-md pl-8 pr-4 py-2 text-sm text-on-surface placeholder:text-on-surface-muted focus:outline-none focus:border-accent focus:ring-1 focus:ring-accent transition-colors"
+            aria-label="Search files"
+          />
+        </div>
         <select
           value={tagFilter}
           onChange={(e) => setTagFilter(e.target.value)}
-          className="border rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-brand-500"
+          className="bg-surface border border-white/10 rounded-md px-3 py-2 text-sm text-on-surface focus:outline-none focus:border-accent focus:ring-1 focus:ring-accent transition-colors"
           aria-label="Filter by tag"
         >
           <option value="">All tags</option>
-          {allTags.map((t) => (
-            <option key={t} value={t}>{t}</option>
-          ))}
+          {allTags.map((t) => <option key={t} value={t}>{t}</option>)}
         </select>
       </div>
 
-      {/* File table */}
-      {loading ? (
-        <p className="text-gray-400 text-center py-8">Loading...</p>
-      ) : files.length === 0 ? (
-        <p className="text-gray-400 text-center py-8">
-          No files yet. Upload one above.
-        </p>
+      {/* Empty state */}
+      {files.length === 0 ? (
+        <div className="flex flex-col items-center justify-center py-24 text-center">
+          <div className="w-16 h-16 rounded-xl bg-accent/10 flex items-center justify-center mb-4" aria-hidden="true">
+            <svg width="28" height="28" viewBox="0 0 24 24" fill="none" stroke="#2563EB" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round">
+              <path d="M13 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V9z"/>
+              <polyline points="13 2 13 9 20 9"/>
+            </svg>
+          </div>
+          <h3 className="text-base font-semibold text-on-surface mb-1">No files yet</h3>
+          <p className="text-sm text-on-surface-muted">Upload your first file using the button above.</p>
+        </div>
       ) : (
-        <div className="overflow-x-auto">
-          <table className="w-full text-sm">
-            <thead>
-              <tr className="border-b text-left text-gray-500">
-                <th className="py-2 px-3 font-medium">Name</th>
-                <th className="py-2 px-3 font-medium">Size</th>
-                <th className="py-2 px-3 font-medium">Type</th>
-                <th className="py-2 px-3 font-medium">Tags</th>
-                <th className="py-2 px-3 font-medium">Uploaded</th>
-              </tr>
-            </thead>
-            <tbody>
-              {files.map((f) => (
-                <tr
-                  key={f.id}
-                  className="border-b hover:bg-gray-50 transition-colors"
-                >
-                  <td className="py-2 px-3">
-                    <Link
-                      href={`/files/${f.id}`}
-                      className="text-brand-600 hover:underline font-medium"
-                    >
-                      {f.name}
-                    </Link>
-                  </td>
-                  <td className="py-2 px-3 text-gray-500">{formatSize(f.size)}</td>
-                  <td className="py-2 px-3 text-gray-500">{f.mime}</td>
-                  <td className="py-2 px-3">
-                    <div className="flex flex-wrap gap-1">
-                      {f.tags.map((t) => (
-                        <span
-                          key={t.tag_id}
-                          className="bg-brand-50 text-brand-700 text-xs px-2 py-0.5 rounded"
-                        >
-                          {t.tag_name}
-                        </span>
-                      ))}
-                    </div>
-                  </td>
-                  <td className="py-2 px-3 text-gray-500">
-                    {new Date(f.created_at).toLocaleDateString()}
-                  </td>
-                </tr>
-              ))}
-            </tbody>
-          </table>
+        /* Card grid */
+        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-4">
+          {files.map((f) => (
+            <Link
+              key={f.id}
+              href={`/files/${f.id}`}
+              className="group bg-surface border border-white/5 rounded-lg p-4 flex flex-col gap-3 shadow-elevation-1 hover:shadow-elevation-2 hover:border-accent/30 transition-all focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-accent focus-visible:ring-offset-2 focus-visible:ring-offset-primary"
+              aria-label={`Open ${f.name}`}
+            >
+              <div className="flex items-start justify-between">
+                <FileIcon mime={f.mime} />
+              </div>
+              <div className="flex-1 min-w-0">
+                <p className="text-sm font-semibold text-on-surface truncate group-hover:text-accent transition-colors">{f.name}</p>
+                <p className="text-xs text-on-surface-muted mt-0.5">
+                  {formatSize(f.size)} · {new Date(f.created_at).toLocaleDateString()}
+                </p>
+              </div>
+              {f.tags.length > 0 && (
+                <div className="flex flex-wrap gap-1">
+                  {f.tags.slice(0, 3).map((t) => (
+                    <span key={t.tag_id} className="bg-accent/10 text-accent text-xs font-medium rounded-full px-2 py-0.5">
+                      {t.tag_name}
+                    </span>
+                  ))}
+                  {f.tags.length > 3 && (
+                    <span className="text-xs text-on-surface-muted py-0.5">+{f.tags.length - 3}</span>
+                  )}
+                </div>
+              )}
+            </Link>
+          ))}
         </div>
       )}
     </div>

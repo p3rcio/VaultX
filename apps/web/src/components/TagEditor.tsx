@@ -28,19 +28,14 @@ export default function TagEditor({ fileId, tags, onUpdate }: Props) {
       setError("Tag already exists");
       return;
     }
-
     setError("");
-    // optimistic update — apply the change locally before the API call so the UI feels instant
+    // optimistic update before the API call
     const updated = [...localTags, { tag_id: "", tag_name: name, confidence: 1.0 }];
     setLocalTags(updated);
     setNewTag("");
-
     try {
-      // send the full updated list — the API replaces all existing tags in one go
-      await api.setTags(
-        fileId,
-        updated.map((t) => ({ name: t.tag_name, confidence: t.confidence }))
-      );
+      // send the full updated list — the API replaces all existing tags
+      await api.setTags(fileId, updated.map((t) => ({ name: t.tag_name, confidence: t.confidence })));
       onUpdate?.();
     } catch (err: any) {
       setError(err.message);
@@ -51,12 +46,8 @@ export default function TagEditor({ fileId, tags, onUpdate }: Props) {
     // filter out the removed tag and push the updated list to the server
     const updated = localTags.filter((t) => t.tag_name !== tagName);
     setLocalTags(updated);
-
     try {
-      await api.setTags(
-        fileId,
-        updated.map((t) => ({ name: t.tag_name, confidence: t.confidence }))
-      );
+      await api.setTags(fileId, updated.map((t) => ({ name: t.tag_name, confidence: t.confidence })));
       onUpdate?.();
     } catch (err: any) {
       setError(err.message);
@@ -65,53 +56,51 @@ export default function TagEditor({ fileId, tags, onUpdate }: Props) {
 
   return (
     <div>
-      <label className="block text-sm font-medium text-gray-700 mb-2">
-        Tags
-      </label>
-
-      {/* Existing tags with remove buttons */}
+      {/* Existing tags */}
       <div className="flex flex-wrap gap-2 mb-3">
         {localTags.length === 0 && (
-          <span className="text-sm text-gray-400">No tags</span>
+          <span className="text-sm text-on-surface-muted">No tags yet</span>
         )}
         {localTags.map((t) => (
           <span
             key={t.tag_name}
-            className="inline-flex items-center gap-1 bg-brand-50 text-brand-700 text-sm px-2 py-1 rounded"
+            className="inline-flex items-center gap-1.5 bg-accent/10 text-accent text-xs font-medium rounded-full px-3 py-1"
           >
             {t.tag_name}
             <button
               onClick={() => handleRemove(t.tag_name)}
-              className="text-brand-400 hover:text-red-500 ml-1"
+              className="text-accent/60 hover:text-error transition-colors focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-error rounded-full"
               aria-label={`Remove tag ${t.tag_name}`}
               title="Remove tag"
             >
-              &times;
+              <svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" aria-hidden="true">
+                <line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/>
+              </svg>
             </button>
           </span>
         ))}
       </div>
 
-      {/* Add tag input — type + Enter or click Add, so <=2 clicks from the detail page */}
+      {/* Add tag — type + Enter or click Add */}
       <div className="flex gap-2">
         <input
           type="text"
           value={newTag}
           onChange={(e) => setNewTag(e.target.value)}
           onKeyDown={(e) => { if (e.key === "Enter") handleAdd(); }}
-          placeholder="Add tag..."
-          className="flex-1 border rounded-lg px-3 py-1.5 text-sm focus:outline-none focus:ring-2 focus:ring-brand-500"
+          placeholder="Add a tag…"
+          className="flex-1 bg-surface-high border border-white/10 rounded-md px-3 py-1.5 text-sm text-on-surface placeholder:text-on-surface-muted focus:outline-none focus:border-accent focus:ring-1 focus:ring-accent transition-colors"
           aria-label="New tag name"
         />
         <button
           onClick={handleAdd}
-          className="bg-brand-600 text-white rounded-lg px-3 py-1.5 text-sm font-medium hover:bg-brand-700 transition-colors"
+          className="bg-accent hover:bg-accent-hover text-white rounded-md px-3 py-1.5 text-sm font-medium transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-offset-2 focus-visible:ring-accent focus-visible:ring-offset-surface"
         >
           Add
         </button>
       </div>
 
-      {error && <p className="text-red-600 text-xs mt-1">{error}</p>}
+      {error && <p className="text-error text-xs mt-1.5">{error}</p>}
     </div>
   );
 }

@@ -1,4 +1,4 @@
-// FileUpload.tsx — drag-and-drop upload area with per-file progress bars and automatic tag generation
+// FileUpload.tsx — drag-and-drop upload zone with animated progress queue
 "use client";
 
 import { useState, useRef } from "react";
@@ -11,6 +11,22 @@ interface Props {
   onUploadComplete?: () => void;
 }
 
+const statusLabel: Record<string, string> = {
+  queued: "Queued",
+  uploading: "Uploading",
+  paused: "Paused",
+  completed: "Complete",
+  failed: "Failed",
+};
+
+const statusColor: Record<string, string> = {
+  queued: "bg-on-surface-muted/15 text-on-surface-muted",
+  uploading: "bg-accent/15 text-accent",
+  paused: "bg-warning/15 text-warning",
+  completed: "bg-success/15 text-success",
+  failed: "bg-error/15 text-error",
+};
+
 export default function FileUpload({ onUploadComplete }: Props) {
   const { umk } = useAuth();
   const [uploads, setUploads] = useState<UploadProgress[]>([]);
@@ -21,22 +37,17 @@ export default function FileUpload({ onUploadComplete }: Props) {
   async function handleFiles(files: FileList | null) {
     if (!files || !umk) return;
 
-    // upload files one at a time — parallel uploads could saturate the connection
     for (const file of Array.from(files)) {
       if (file.size > 1024 * 1024 * 1024) {
-        alert(`"${file.name}" exceeds 1 GB limit.`);
+        alert(`"${file.name}" exceeds the 1 GB limit.`);
         continue;
       }
-
-      // AbortController lets the upload be cancelled or paused mid-way
       abortRef.current = new AbortController();
-
       try {
         const fileId = await uploadFile(
           file,
           umk,
           (progress) => {
-            // match by filename and update that entry in the list, or append if new
             setUploads((prev) => {
               const idx = prev.findIndex((u) => u.fileName === file.name);
               if (idx >= 0) {
@@ -49,13 +60,8 @@ export default function FileUpload({ onUploadComplete }: Props) {
           },
           abortRef.current.signal
         );
-
-        // auto-tag from filename/type/size once the upload completes
         const tags = generateTags(file.name, file.type, file.size);
-        if (tags.length > 0) {
-          await api.setTags(fileId, tags);
-        }
-
+        if (tags.length > 0) await api.setTags(fileId, tags);
         onUploadComplete?.();
       } catch (err: any) {
         console.error("Upload failed:", err);
@@ -63,74 +69,62 @@ export default function FileUpload({ onUploadComplete }: Props) {
     }
   }
 
-  const statusColor: Record<string, string> = {
-    queued: "text-gray-500",
-    uploading: "text-blue-600",
-    paused: "text-yellow-600",
-    completed: "text-green-600",
-    failed: "text-red-600",
-  };
-
   return (
     <div className="space-y-4">
       {/* Drop zone */}
       <div
-        className={`border-2 border-dashed rounded-lg p-8 text-center cursor-pointer transition-colors
-          ${dragOver ? "border-brand-500 bg-brand-50" : "border-gray-300 hover:border-gray-400"}`}
+        className={`relative border-2 border-dashed rounded-lg p-10 text-center cursor-pointer transition-all
+          ${dragOver
+            ? "border-accent dropzone-active bg-accent/5"
+            : "border-on-surface-muted/20 hover:border-accent/50 hover:bg-surface-high/50"}`}
         onDragOver={(e) => { e.preventDefault(); setDragOver(true); }}
         onDragLeave={() => setDragOver(false)}
-        onDrop={(e) => {
-          e.preventDefault();
-          setDragOver(false);
-          handleFiles(e.dataTransfer.files);
-        }}
+        onDrop={(e) => { e.preventDefault(); setDragOver(false); handleFiles(e.dataTransfer.files); }}
         onClick={() => inputRef.current?.click()}
         role="button"
         tabIndex={0}
-        aria-label="Upload files"
+        aria-label="Upload files — click or drag and drop"
         onKeyDown={(e) => { if (e.key === "Enter" || e.key === " ") inputRef.current?.click(); }}
       >
-        <p className="text-gray-600 font-medium">
-          Drop files here or click to browse
-        </p>
-        <p className="text-sm text-gray-400 mt-1">Max 1 GB per file</p>
-        <input
-          ref={inputRef}
-          type="file"
-          multiple
-          className="hidden"
-          onChange={(e) => handleFiles(e.target.files)}
-          aria-label="File input"
-        />
+        <div className="flex flex-col items-center gap-3">
+          <div className={`w-12 h-12 rounded-xl flex items-center justify-center transition-colors ${dragOver ? "bg-accent" : "bg-surface-high"}`} aria-hidden="true">
+            <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke={dragOver ? "white" : "#2563EB"} strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+              <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/>
+              <polyline points="17 8 12 3 7 8"/><line x1="12" y1="3" x2="12" y2="15"/>
+            </svg>
+          </div>
+          <div>
+            <p className="text-sm font-medium text-on-surface">
+              Drop files here or <span className="text-accent">browse</span>
+            </p>
+            <p className="text-xs text-on-surface-muted mt-1">Up to 1 GB per file</p>
+          </div>
+        </div>
+        <input ref={inputRef} type="file" multiple className="hidden" onChange={(e) => handleFiles(e.target.files)} aria-label="File input" />
       </div>
 
-      {/* Upload progress list */}
+      {/* Upload queue */}
       {uploads.length > 0 && (
         <div className="space-y-2">
+          <h3 className="text-xs font-semibold text-on-surface-muted uppercase tracking-wider px-1">Upload Queue</h3>
           {uploads.map((u, i) => (
-            <div key={i} className="bg-white rounded-lg border p-3">
-              <div className="flex justify-between items-center mb-1">
-                <span className="text-sm font-medium truncate max-w-[60%]">
-                  {u.fileName}
-                </span>
-                <span className={`text-xs font-semibold uppercase ${statusColor[u.status]}`}>
-                  {u.status}
+            <div key={i} className="bg-surface-high rounded-lg border border-white/5 px-4 py-3">
+              <div className="flex items-center justify-between mb-2">
+                <p className="text-sm font-medium text-on-surface truncate max-w-[70%]">{u.fileName}</p>
+                <span className={`text-xs font-medium rounded-full px-2.5 py-0.5 ${statusColor[u.status]}`}>
+                  {statusLabel[u.status]}
                 </span>
               </div>
-
               {/* Progress bar */}
-              <div className="w-full bg-gray-200 rounded-full h-2">
+              <div className="w-full bg-surface rounded-full h-1" aria-hidden="true">
                 <div
-                  className="bg-brand-500 h-2 rounded-full transition-all"
-                  style={{
-                    width: `${u.totalChunks ? (u.completedChunks / u.totalChunks) * 100 : 0}%`,
-                  }}
+                  className="bg-accent h-1 rounded-full progress-bar"
+                  style={{ width: `${u.totalChunks ? (u.completedChunks / u.totalChunks) * 100 : 0}%` }}
                 />
               </div>
-
-              <p className="text-xs text-gray-400 mt-1">
-                {u.completedChunks}/{u.totalChunks} chunks
-                {u.error && <span className="text-red-500 ml-2">{u.error}</span>}
+              <p className="text-xs text-on-surface-muted mt-1.5">
+                {u.completedChunks} / {u.totalChunks} chunks
+                {u.error && <span className="text-error ml-2">{u.error}</span>}
               </p>
             </div>
           ))}

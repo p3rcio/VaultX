@@ -2,17 +2,59 @@
 @tailwind components;
 @tailwind utilities;
 
-/* keyboard navigation (WCAG AA) */
+/* WCAG AA focus ring on all interactive elements */
 *:focus-visible {
-  outline: 3px solid #3b82f6;
+  outline: 2px solid #2563EB;
   outline-offset: 2px;
 }
 
-/* Smooth scrolling */
 html {
   scroll-behavior: smooth;
 }
 
 body {
-  @apply bg-gray-50 text-gray-900 font-sans;
+  @apply bg-primary text-on-surface font-sans antialiased;
+}
+
+/* Sidebar scroll without affecting main */
+.sidebar {
+  height: 100vh;
+  position: fixed;
+  top: 0;
+  left: 0;
+  width: 240px;
+  overflow-y: auto;
+}
+
+/* Main content offset — fills remaining viewport after sidebar */
+.main-with-sidebar {
+  margin-left: 240px;
+  min-height: 100vh;
+  width: calc(100% - 240px);
+}
+
+/* Animated progress bar */
+.progress-bar {
+  transition: width 0.3s ease-in-out;
+}
+
+/* Drag-over glow */
+.dropzone-active {
+  box-shadow: 0 0 20px rgba(37, 99, 235, 0.35);
+  border-color: #2563EB !important;
+}
+
+/* native select dark */
+select option {
+  background-color: #1E2A3B;
+  color: #E2E8F0;
+}
+
+@media (max-width: 1024px) {
+  .sidebar {
+    display: none;
+  }
+  .main-with-sidebar {
+    margin-left: 0;
+  }
 }
