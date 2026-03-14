@@ -63,15 +63,15 @@ export default function Sidebar() {
 
   return (
     <aside className="sidebar bg-primary flex flex-col border-r border-white/5 z-30" aria-label="Main navigation">
-      {/* Logo */}
-      <div className="px-5 py-6 flex items-center gap-2.5">
+      {/* Logo — links back to dashboard */}
+      <Link href="/dashboard" className="px-5 py-6 flex items-center gap-2.5 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-accent rounded-md" aria-label="Go to dashboard">
         <div className="w-8 h-8 rounded-md bg-accent flex items-center justify-center text-white">
           <IconLock />
         </div>
         <span className="text-lg font-bold text-on-surface tracking-tight">
           Vault<span className="text-accent">X</span>
         </span>
-      </div>
+      </Link>
 
       {/* Nav items */}
       <nav className="flex-1 px-3 space-y-1" aria-label="Site navigation">
