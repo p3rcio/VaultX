@@ -11,6 +11,7 @@ import fileRoutes from "./routes/files";
 import shareRoutes from "./routes/shares";
 import tagRoutes from "./routes/tags";
 import auditRoutes from "./routes/audit";
+import userRoutes from "./routes/users";
 
 async function main() {
   // tables need to exist before anything else runs
@@ -36,6 +37,7 @@ async function main() {
   app.use("/shares", shareRoutes);
   app.use("/files", tagRoutes);       // tag routes are nested under /files/:id/tags
   app.use("/audit", auditRoutes);
+  app.use("/users", userRoutes);
 
   // any unhandled route error falls through here and returns a generic 500
   app.use(

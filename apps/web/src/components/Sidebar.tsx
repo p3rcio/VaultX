@@ -104,12 +104,19 @@ export default function Sidebar() {
 
       {/* Bottom user section */}
       <div className="px-3 py-4 border-t border-white/5">
-        <div className="flex items-center gap-3 px-3 py-2 mb-1">
+        <Link
+          href="/account"
+          className="flex items-center gap-3 px-3 py-2 mb-1 rounded-md hover:bg-surface-high transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-accent"
+          aria-label="My account"
+        >
           <div className="w-7 h-7 rounded-full bg-accent/20 flex items-center justify-center text-accent text-xs font-bold flex-shrink-0" aria-hidden="true">
             {user?.email?.[0]?.toUpperCase() ?? "?"}
           </div>
           <span className="text-xs text-on-surface-muted truncate flex-1">{user?.email}</span>
-        </div>
+          <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" className="text-on-surface-muted/50 flex-shrink-0" aria-hidden="true">
+            <polyline points="9 18 15 12 9 6"/>
+          </svg>
+        </Link>
         <button
           onClick={() => { if (confirm("Are you sure you want to log out?")) logout(); }}
           className="flex items-center gap-2 w-full px-3 py-2 rounded-md text-sm text-on-surface-muted hover:text-error hover:bg-error/10 transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-error"

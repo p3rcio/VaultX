@@ -85,3 +85,6 @@ CREATE INDEX IF NOT EXISTS idx_shares_file   ON shares(file_id);
 CREATE INDEX IF NOT EXISTS idx_shares_token  ON shares(link_token_hash);
 CREATE INDEX IF NOT EXISTS idx_audit_user    ON audit(user_id, ts DESC);
 CREATE INDEX IF NOT EXISTS idx_file_tags_file ON file_tags(file_id);
+
+-- added display name support for account page
+ALTER TABLE users ADD COLUMN IF NOT EXISTS display_name VARCHAR(100);

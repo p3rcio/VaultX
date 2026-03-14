@@ -89,4 +89,17 @@ export const api = {
   /* Audit */
   getAudit: (limit = 50, offset = 0) =>
     request(`/audit?limit=${limit}&offset=${offset}`),
+
+  /* Users */
+  getMe: () => request("/users/me"),
+  updateDisplayName: (displayName: string) =>
+    request("/users/me", { method: "PATCH", body: JSON.stringify({ display_name: displayName }) }),
+  changePassword: (body: {
+    current_password: string;
+    new_password: string;
+    new_wrapped_umk: string;
+    new_kdf_salt: string;
+    new_kdf_iterations: number;
+  }) => request("/users/me/change-password", { method: "POST", body: JSON.stringify(body) }),
+  deleteAccount: () => request("/users/me", { method: "DELETE" }),
 };

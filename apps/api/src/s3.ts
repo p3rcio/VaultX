@@ -8,6 +8,7 @@ import {
   GetObjectCommand,
   HeadObjectCommand,
   ListObjectsV2Command,
+  DeleteObjectCommand,
 } from "@aws-sdk/client-s3";
 import { getSignedUrl } from "@aws-sdk/s3-request-presigner";
 import { config } from "./config";
@@ -115,4 +116,8 @@ export async function listObjects(prefix: string): Promise<string[]> {
 // chunks are stored as "fileId/chunk_00000" — zero-padded so they sort in the right order
 export function chunkKey(fileId: string, index: number): string {
   return `${fileId}/chunk_${String(index).padStart(5, "0")}`;
+}
+
+export async function deleteObject(objectKey: string): Promise<void> {
+  await s3.send(new DeleteObjectCommand({ Bucket: minio.bucket, Key: objectKey }));
 }

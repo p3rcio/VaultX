@@ -6,6 +6,7 @@
 export interface User {
   id: string;
   email: string;
+  display_name?: string | null;
   created_at: string;
 }
 
@@ -123,7 +124,9 @@ export type AuditAction =
   | "download"
   | "share_created"
   | "share_disabled"
-  | "share_accessed";
+  | "share_accessed"
+  | "password_changed"
+  | "account_deleted";
 
 export interface AuditEntry {
   id: string;
