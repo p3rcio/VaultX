@@ -111,7 +111,7 @@ export default function Sidebar() {
           <span className="text-xs text-on-surface-muted truncate flex-1">{user?.email}</span>
         </div>
         <button
-          onClick={logout}
+          onClick={() => { if (confirm("Are you sure you want to log out?")) logout(); }}
           className="flex items-center gap-2 w-full px-3 py-2 rounded-md text-sm text-on-surface-muted hover:text-error hover:bg-error/10 transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-error"
           aria-label="Log out"
         >
