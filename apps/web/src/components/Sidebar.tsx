@@ -94,7 +94,7 @@ export default function Sidebar() {
       {/* Nav items */}
       <nav className="flex-1 px-3 space-y-1" aria-label="Site navigation">
         {navItems.map(({ href, label, icon }) => {
-          const isActive = pathname === href || (href !== "/dashboard" && pathname.startsWith(href));
+          const isActive = pathname === href || (href !== "/dashboard" && pathname.startsWith(href + "/"));
           return (
             <Link
               key={href}
