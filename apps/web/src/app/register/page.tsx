@@ -47,7 +47,8 @@ export default function RegisterPage() {
     setLoading(true);
     try {
       await register(email, password);
-      router.push("/dashboard");
+      // always go to 2FA setup first — it's mandatory
+      router.push("/setup-2fa");
     } catch (err: any) {
       setError(err.message || "Registration failed");
     } finally {

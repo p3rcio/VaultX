@@ -8,6 +8,7 @@ export interface User {
   email: string;
   display_name?: string | null;
   created_at: string;
+  totp_enabled: boolean;
 }
 
 // returned on login so the client can re-derive the KEK and unwrap the UMK
@@ -126,7 +127,9 @@ export type AuditAction =
   | "share_disabled"
   | "share_accessed"
   | "password_changed"
-  | "account_deleted";
+  | "account_deleted"
+  | "2fa_enabled"
+  | "2fa_disabled";
 
 export interface AuditEntry {
   id: string;

@@ -16,9 +16,14 @@ export async function logAudit(
     "unknown";
   const ua = req.headers["user-agent"] ?? "unknown";
 
-  await pool.query(
-    `INSERT INTO audit (user_id, action, file_id, ip, user_agent)
-     VALUES ($1, $2, $3, $4, $5)`,
-    [userId, action, fileId ?? null, ip, ua]
-  );
+  try {
+    await pool.query(
+      `INSERT INTO audit (user_id, action, file_id, ip, user_agent)
+       VALUES ($1, $2, $3, $4, $5)`,
+      [userId, action, fileId ?? null, ip, ua]
+    );
+  } catch (err) {
+    // audit failure should never crash the server — just log and move on
+    console.error("[audit] failed to write entry:", err);
+  }
 }

@@ -91,6 +91,13 @@ export const api = {
   getAudit: (limit = 50, offset = 0) =>
     request(`/audit?limit=${limit}&offset=${offset}`),
 
+  /* TOTP / 2FA */
+  totpSetup: () => request("/auth/totp/setup"),
+  totpActivate: (code: string) =>
+    request("/auth/totp/activate", { method: "POST", body: JSON.stringify({ code }) }),
+  totpLogin: (pending_token: string, code: string) =>
+    request("/auth/totp/login", { method: "POST", body: JSON.stringify({ pending_token, code }) }),
+
   /* Users */
   getMe: () => request("/users/me"),
   updateDisplayName: (displayName: string) =>

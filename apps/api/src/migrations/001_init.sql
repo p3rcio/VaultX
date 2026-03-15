@@ -89,6 +89,9 @@ CREATE INDEX IF NOT EXISTS idx_file_tags_file ON file_tags(file_id);
 -- added display name support for account page
 ALTER TABLE users ADD COLUMN IF NOT EXISTS display_name VARCHAR(100);
 
+-- 2FA flag — set to true once the user has scanned the QR code and verified their first code
+ALTER TABLE users ADD COLUMN IF NOT EXISTS totp_enabled BOOLEAN NOT NULL DEFAULT false;
+
 -- added user preferences: default share expiry and auto logout timeout
 ALTER TABLE users ADD COLUMN IF NOT EXISTS default_share_expiry_days INT NOT NULL DEFAULT 7;
 ALTER TABLE users ADD COLUMN IF NOT EXISTS auto_logout_minutes INT NOT NULL DEFAULT 30;

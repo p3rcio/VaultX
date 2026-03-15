@@ -7,6 +7,7 @@ import {
   useState,
   useEffect,
   useCallback,
+  useRef,
   ReactNode,
 } from "react";
 import { api, setToken, clearToken, getToken } from "./api";
@@ -24,7 +25,6 @@ import {
 } from "./crypto";
 import type { User, KeyBundle } from "@vaultx/shared";
 
-// reads the user's saved preference, falling back to 30 minutes
 function getInactivityTimeout(): number {
   try {
     const saved = localStorage.getItem("vaultx_auto_logout_minutes");
@@ -36,22 +36,35 @@ function getInactivityTimeout(): number {
 }
 const KDF_ITERATIONS = 600_000;
 
+// stored between the two login steps so totpLogin can finish the job
+interface PendingTotp {
+  pendingToken: string;
+  password: string;
+}
+
 interface AuthState {
   user: User | null;
   umk: CryptoKey | null;
   loading: boolean;
-  login: (email: string, password: string) => Promise<void>;
+  // returns { totp_required: true } if the account has 2FA — caller should then show the code input
+  login: (email: string, password: string) => Promise<{ totp_required: boolean }>;
+  // second step — call after login returns totp_required: true
+  totpLogin: (code: string) => Promise<void>;
   register: (email: string, password: string) => Promise<void>;
   logout: () => Promise<void>;
+  // call after TOTP setup to swap in the new token that has totp_enabled: true
+  refreshToken: (newToken: string) => void;
 }
 
 const AuthContext = createContext<AuthState>({
   user: null,
   umk: null,
   loading: true,
-  login: async () => {},
+  login: async () => ({ totp_required: false }),
+  totpLogin: async () => {},
   register: async () => {},
   logout: async () => {},
+  refreshToken: () => {},
 });
 
 export function AuthProvider({ children }: { children: ReactNode }) {
@@ -59,13 +72,15 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   const [umk, setUmk] = useState<CryptoKey | null>(null);
   const [loading, setLoading] = useState(true);
 
+  // kept in a ref so it doesn't trigger re-renders — only used for the brief gap between step 1 and step 2
+  const pendingTotpRef = useRef<PendingTotp | null>(null);
+
   /* ── Inactivity timer ─────────────────────────────── */
   useEffect(() => {
     if (!user) return;
 
     let timer: ReturnType<typeof setTimeout>;
 
-    // resets the countdown every time the user interacts with the page
     const reset = () => {
       clearTimeout(timer);
       timer = setTimeout(() => {
@@ -75,7 +90,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
 
     const events = ["mousedown", "keydown", "scroll", "touchstart"];
     events.forEach((e) => window.addEventListener(e, reset));
-    reset(); // start the timer immediately
+    reset();
 
     return () => {
       clearTimeout(timer);
@@ -91,20 +106,21 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         const token = getToken();
         if (!token) return;
 
-        // both the JWT and the UMK must be present to restore the session
         const storedUmk = await loadUMKFromSession();
         if (!storedUmk) {
           clearToken();
           return;
         }
 
-        // JWTs are header.payload.signature — decode the middle part to get user info
-        // signature verification happens server-side on every API call
         const payload = JSON.parse(atob(token.split(".")[1]));
-        setUser({ id: payload.userId, email: payload.email, created_at: "" });
+        setUser({
+          id: payload.userId,
+          email: payload.email,
+          created_at: "",
+          totp_enabled: payload.totp_enabled ?? false,
+        });
         setUmk(storedUmk);
       } catch {
-        // something went wrong restoring state — start fresh
         clearToken();
         clearUMKFromSession();
       } finally {
@@ -115,13 +131,11 @@ export function AuthProvider({ children }: { children: ReactNode }) {
 
   /* ── Register ─────────────────────────────────────── */
   const register = useCallback(async (email: string, password: string) => {
-    // all crypto runs in the browser — server never sees the KEK or the raw UMK
     const salt = generateSalt();
     const kek = await deriveKEK(password, salt, KDF_ITERATIONS);
     const newUmk = await generateUMK();
     const wrappedUmk = await wrapUMK(newUmk, kek);
 
-    // server only receives: email, bcryptjs hash of password, wrapped UMK, and KDF params
     const res = await api.register({
       email,
       password,
@@ -136,15 +150,43 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     setUmk(newUmk);
   }, []);
 
-  /* ── Login ────────────────────────────────────────── */
-  const login = useCallback(async (email: string, password: string) => {
+  /* ── Login — step 1 ───────────────────────────────── */
+  const login = useCallback(async (email: string, password: string): Promise<{ totp_required: boolean }> => {
     const res = await api.login({ email, password });
-    const kb: KeyBundle = res.key_bundle;
 
-    // re-derive the KEK from the password using the stored salt and iteration count
+    // account has 2FA — stash the pending token and password for step 2
+    if (res.totp_required) {
+      pendingTotpRef.current = { pendingToken: res.pending_token, password };
+      return { totp_required: true };
+    }
+
+    // no 2FA — finish login right now
+    const kb: KeyBundle = res.key_bundle;
     const salt = fromBase64(kb.kdf_salt);
     const kek = await deriveKEK(password, salt, kb.kdf_iterations);
-    // wrong password → wrong KEK → unwrapKey throws
+    const recoveredUmk = await unwrapUMK(kb.wrapped_umk, kek);
+
+    setToken(res.token);
+    await storeUMKInSession(recoveredUmk);
+    setUser(res.user);
+    setUmk(recoveredUmk);
+
+    return { totp_required: false };
+  }, []);
+
+  /* ── Login — step 2 (TOTP code) ───────────────────── */
+  const totpLogin = useCallback(async (code: string) => {
+    const pending = pendingTotpRef.current;
+    if (!pending) throw new Error("No pending login — call login() first");
+
+    // exchange the pending token + code for a real JWT + key bundle
+    const res = await api.totpLogin(pending.pendingToken, code);
+    pendingTotpRef.current = null;
+
+    const kb: KeyBundle = res.key_bundle;
+    const salt = fromBase64(kb.kdf_salt);
+    // re-derive using the password we held onto from step 1
+    const kek = await deriveKEK(pending.password, salt, kb.kdf_iterations);
     const recoveredUmk = await unwrapUMK(kb.wrapped_umk, kek);
 
     setToken(res.token);
@@ -153,13 +195,28 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     setUmk(recoveredUmk);
   }, []);
 
+  /* ── Refresh token (called after TOTP setup) ──────── */
+  // the activation endpoint returns a new JWT with totp_enabled: true — swap it in
+  const refreshToken = useCallback((newToken: string) => {
+    setToken(newToken);
+    try {
+      const payload = JSON.parse(atob(newToken.split(".")[1]));
+      setUser((prev) =>
+        prev ? { ...prev, totp_enabled: payload.totp_enabled ?? true } : prev
+      );
+    } catch {
+      // malformed token — just ignore the user update
+    }
+  }, []);
+
   /* ── Logout ───────────────────────────────────────── */
   const doLogout = useCallback(async () => {
     try {
       await api.logout();
     } catch {
-      // ignore — token may already be expired or invalid
+      // ignore
     }
+    pendingTotpRef.current = null;
     clearToken();
     clearUMKFromSession();
     setUser(null);
@@ -168,7 +225,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
 
   return (
     <AuthContext.Provider
-      value={{ user, umk, loading, login, register, logout: doLogout }}
+      value={{ user, umk, loading, login, totpLogin, register, logout: doLogout, refreshToken }}
     >
       {children}
     </AuthContext.Provider>

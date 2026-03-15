@@ -3,6 +3,7 @@ import type { Metadata } from "next";
 import { DM_Sans } from "next/font/google";
 import "./globals.css";
 import { AuthProvider } from "@/lib/auth-context";
+import { TotpGuard } from "@/components/TotpGuard";
 
 const dmSans = DM_Sans({ subsets: ["latin"], display: "swap" });
 
@@ -27,7 +28,9 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
         />
       </head>
       <body>
-        <AuthProvider>{children}</AuthProvider>
+        <AuthProvider>
+          <TotpGuard>{children}</TotpGuard>
+        </AuthProvider>
       </body>
     </html>
   );

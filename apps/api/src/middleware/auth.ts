@@ -6,6 +6,7 @@ import { config } from "../config";
 export interface AuthPayload {
   userId: string;
   email: string;
+  totp_enabled: boolean;
 }
 
 // extends the Express Request type so TypeScript knows req.auth exists on protected routes
