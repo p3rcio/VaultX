@@ -17,6 +17,21 @@ declare global {
   }
 }
 
+// same as requireAuth but never rejects — just attaches req.auth if the token is valid
+// used on public routes that want to know if the caller is logged in (e.g. share link access)
+export function optionalAuth(req: Request, _res: Response, next: NextFunction): void {
+  const header = req.headers.authorization;
+  if (header?.startsWith("Bearer ")) {
+    try {
+      const payload = jwt.verify(header.slice(7), config.jwtSecret) as AuthPayload;
+      req.auth = payload;
+    } catch {
+      // invalid/expired token — just continue without auth, don't reject
+    }
+  }
+  next();
+}
+
 // runs before any protected route handler — rejects requests without a valid JWT
 export function requireAuth(req: Request, res: Response, next: NextFunction): void {
   const header = req.headers.authorization;

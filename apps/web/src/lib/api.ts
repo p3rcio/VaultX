@@ -84,6 +84,7 @@ export const api = {
     request(`/shares/${fileId}/share`, { method: "POST", body: JSON.stringify(body) }),
   getShareByToken: (hash: string) => request(`/shares/by-token/${hash}`),
   listMyShares: () => request("/shares/mine"),
+  getSharedWithMe: () => request("/shares/shared-with-me"),
   disableShare: (id: string) => request(`/shares/${id}`, { method: "DELETE" }),
 
   /* Audit */

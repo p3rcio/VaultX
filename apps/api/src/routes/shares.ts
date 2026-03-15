@@ -3,7 +3,7 @@ import { Router, Request, Response } from "express";
 import crypto from "crypto";
 import { createShareSchema } from "@vaultx/shared";
 import { pool } from "../db";
-import { requireAuth } from "../middleware/auth";
+import { requireAuth, optionalAuth } from "../middleware/auth";
 import { shareLimiter } from "../middleware/rateLimit";
 import { logAudit } from "../middleware/audit";
 import { presignedGet, chunkKey } from "../s3";
@@ -81,6 +81,7 @@ router.post(
 router.get(
   "/by-token/:hash",
   shareLimiter,
+  optionalAuth,
   async (req: Request, res: Response) => {
     try {
       const tokenHash = req.params.hash;
@@ -125,6 +126,23 @@ router.get(
 
       await logAudit(req, "share_accessed", share.file_id);
 
+      // if the caller is a logged-in user (not the share creator), record this in their
+      // "Shared With Me" list — snapshot file name and sharer email in case they're deleted later
+      const viewerId = req.auth?.userId;
+      if (viewerId && viewerId !== share.owner_id) {
+        const sharerRes = await pool.query(
+          `SELECT email FROM users WHERE id = $1`,
+          [share.created_by]
+        );
+        const sharerEmail = sharerRes.rows[0]?.email ?? "unknown";
+        await pool.query(
+          `INSERT INTO share_accesses (user_id, share_id, file_name_snapshot, sharer_email_snapshot)
+           VALUES ($1, $2, $3, $4)
+           ON CONFLICT (user_id, share_id) DO NOTHING`,
+          [viewerId, share.id, share.name, sharerEmail]
+        );
+      }
+
       res.json({
         file: {
           id: share.file_id,
@@ -162,6 +180,37 @@ router.get("/mine", requireAuth, async (req: Request, res: Response) => {
     res.json({ shares: result.rows });
   } catch (err: any) {
     console.error("[shares/mine]", err);
+    res.status(500).json({ error: "Internal server error" });
+  }
+});
+
+/* ── GET /shares/shared-with-me ──────────────────────── */
+
+router.get("/shared-with-me", requireAuth, async (req: Request, res: Response) => {
+  try {
+    const userId = req.auth!.userId;
+
+    const result = await pool.query(
+      `SELECT
+         sa.id,
+         sa.share_id,
+         sa.file_name_snapshot,
+         sa.sharer_email_snapshot,
+         sa.accessed_at,
+         s.file_id,
+         s.expires_at,
+         s.disabled_at
+       FROM share_accesses sa
+       JOIN shares s ON s.id = sa.share_id
+       WHERE sa.user_id = $1
+       ORDER BY sa.accessed_at DESC
+       LIMIT 100`,
+      [userId]
+    );
+
+    res.json({ shares: result.rows });
+  } catch (err: any) {
+    console.error("[shares/shared-with-me]", err);
     res.status(500).json({ error: "Internal server error" });
   }
 });

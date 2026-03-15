@@ -92,3 +92,16 @@ ALTER TABLE users ADD COLUMN IF NOT EXISTS display_name VARCHAR(100);
 -- added user preferences: default share expiry and auto logout timeout
 ALTER TABLE users ADD COLUMN IF NOT EXISTS default_share_expiry_days INT NOT NULL DEFAULT 7;
 ALTER TABLE users ADD COLUMN IF NOT EXISTS auto_logout_minutes INT NOT NULL DEFAULT 30;
+
+-- tracks which share links a logged-in user has accessed (for the "Shared With Me" view)
+CREATE TABLE IF NOT EXISTS share_accesses (
+  id                    UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+  user_id               UUID NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+  share_id              UUID NOT NULL REFERENCES shares(id) ON DELETE CASCADE,
+  file_name_snapshot    VARCHAR(255) NOT NULL,
+  sharer_email_snapshot VARCHAR(255) NOT NULL,
+  accessed_at           TIMESTAMPTZ NOT NULL DEFAULT now(),
+  UNIQUE(user_id, share_id)
+);
+
+CREATE INDEX IF NOT EXISTS idx_share_accesses_user ON share_accesses(user_id, accessed_at DESC);
