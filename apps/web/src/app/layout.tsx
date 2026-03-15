@@ -14,6 +14,18 @@ export const metadata: Metadata = {
 export default function RootLayout({ children }: { children: React.ReactNode }) {
   return (
     <html lang="en" className={dmSans.className}>
+      <head>
+        {/*
+          Runs before any HTML is painted — reads the saved theme from localStorage and
+          adds the "light" class to <html> immediately. Without this, light-mode users
+          see a dark flash on every page load while React boots up.
+        */}
+        <script
+          dangerouslySetInnerHTML={{
+            __html: `try{if(localStorage.getItem('vaultx_theme')==='light')document.documentElement.classList.add('light')}catch(e){}`,
+          }}
+        />
+      </head>
       <body>
         <AuthProvider>{children}</AuthProvider>
       </body>

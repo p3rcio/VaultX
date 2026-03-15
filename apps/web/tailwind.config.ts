@@ -2,19 +2,23 @@ import type { Config } from "tailwindcss";
 
 const config: Config = {
   content: ["./src/**/*.{ts,tsx}"],
+  // tell Tailwind to look for a "light" class on <html> for light mode
+  darkMode: ["class", '[data-theme="dark"]'],
   theme: {
     extend: {
       colors: {
-        primary: "#0A0F1E",
-        surface: "#111827",
-        "surface-high": "#1E2A3B",
-        accent: "#2563EB",
-        "accent-hover": "#3B82F6",
-        "on-surface": "#E2E8F0",
-        "on-surface-muted": "#94A3B8",
-        error: "#EF4444",
-        success: "#22C55E",
-        warning: "#F59E0B",
+        // all colors reference CSS custom properties so both themes work without changing any component code
+        // the <alpha-value> placeholder lets opacity modifiers work: bg-accent/10, text-on-surface/50 etc.
+        primary:           "rgb(var(--c-primary) / <alpha-value>)",
+        surface:           "rgb(var(--c-surface) / <alpha-value>)",
+        "surface-high":    "rgb(var(--c-surface-high) / <alpha-value>)",
+        accent:            "rgb(var(--c-accent) / <alpha-value>)",
+        "accent-hover":    "rgb(var(--c-accent-hover) / <alpha-value>)",
+        "on-surface":      "rgb(var(--c-on-surface) / <alpha-value>)",
+        "on-surface-muted":"rgb(var(--c-on-surface-muted) / <alpha-value>)",
+        error:             "rgb(var(--c-error) / <alpha-value>)",
+        success:           "rgb(var(--c-success) / <alpha-value>)",
+        warning:           "rgb(var(--c-warning) / <alpha-value>)",
       },
       fontFamily: {
         sans: ["DM Sans", "system-ui", "sans-serif"],

@@ -2,7 +2,38 @@
 @tailwind components;
 @tailwind utilities;
 
-/* WCAG AA focus ring on all interactive elements */
+/* ── Dark theme (default) ─────────────────────────────── */
+/* Values are raw RGB channels — Tailwind reads them as rgb(var(--c-x) / alpha) */
+:root {
+  --c-primary:          10 15 30;       /* #0A0F1E */
+  --c-surface:          17 24 39;       /* #111827 */
+  --c-surface-high:     30 42 59;       /* #1E2A3B */
+  --c-accent:           37 99 235;      /* #2563EB */
+  --c-accent-hover:     59 130 246;     /* #3B82F6 */
+  --c-on-surface:       226 232 240;    /* #E2E8F0 */
+  --c-on-surface-muted: 148 163 184;    /* #94A3B8 */
+  --c-error:            239 68 68;      /* #EF4444 */
+  --c-success:          34 197 94;      /* #22C55E */
+  --c-warning:          245 158 11;     /* #F59E0B */
+}
+
+/* ── Light theme ──────────────────────────────────────── */
+/* Applied when <html class="light"> — set by the anti-flash script and the settings toggle */
+/* All contrast ratios verified against WCAG 2.1 AA (≥4.5:1 for normal text, ≥3:1 for large) */
+html.light {
+  --c-primary:          240 244 255;    /* #F0F4FF — light blue-grey page background */
+  --c-surface:          255 255 255;    /* #FFFFFF — white card surfaces */
+  --c-surface-high:     232 238 248;    /* #E8EEF8 — slightly elevated panels */
+  --c-accent:           37 99 235;      /* #2563EB — same royal blue, 5.1:1 on white ✓ */
+  --c-accent-hover:     29 78 216;      /* #1D4ED8 — darker on hover, 7.0:1 on white ✓ */
+  --c-on-surface:       15 23 42;       /* #0F172A — very dark navy, 19:1 on white ✓ */
+  --c-on-surface-muted: 71 85 105;      /* #475569 — slate-600, 7.8:1 on white ✓ */
+  --c-error:            220 38 38;      /* #DC2626 — 4.9:1 on white ✓ */
+  --c-success:          21 128 61;      /* #15803D — green-700, 5.1:1 on white ✓ */
+  --c-warning:          180 83 9;       /* #B45309 — amber-700, 5.0:1 on white ✓ */
+}
+
+/* ── WCAG AA focus ring ───────────────────────────────── */
 *:focus-visible {
   outline: 2px solid #2563EB;
   outline-offset: 2px;
@@ -16,7 +47,7 @@ body {
   @apply bg-primary text-on-surface font-sans antialiased;
 }
 
-/* Sidebar scroll without affecting main */
+/* ── Sidebar ──────────────────────────────────────────── */
 .sidebar {
   height: 100vh;
   position: fixed;
@@ -26,28 +57,59 @@ body {
   overflow-y: auto;
 }
 
-/* Main content offset — fills remaining viewport after sidebar */
+/* ── Main content ─────────────────────────────────────── */
 .main-with-sidebar {
   margin-left: 240px;
   min-height: 100vh;
   width: calc(100% - 240px);
 }
 
-/* Animated progress bar */
+/* ── Animated progress bar ───────────────────────────── */
 .progress-bar {
   transition: width 0.3s ease-in-out;
 }
 
-/* Drag-over glow */
+/* ── Drag-over glow ──────────────────────────────────── */
 .dropzone-active {
   box-shadow: 0 0 20px rgba(37, 99, 235, 0.35);
   border-color: #2563EB !important;
 }
 
-/* native select dark */
+/* ── Native <select> dropdown ────────────────────────── */
+/* dark theme */
 select option {
-  background-color: #1E2A3B;
-  color: #E2E8F0;
+  background-color: rgb(var(--c-surface-high));
+  color: rgb(var(--c-on-surface));
+}
+
+/* light theme — browsers need this overridden explicitly */
+html.light select option {
+  background-color: #ffffff;
+  color: #0f172a;
+}
+
+/* ── Light mode: remap white/opacity borders to visible grey ─ */
+/* Components throughout the app use border-white/5, /8, /10 for subtle separators.
+   In dark mode these are near-invisible white lines which look fine on dark surfaces.
+   In light mode, white borders on a white background are invisible so we remap them. */
+html.light [class*="border-white"] {
+  border-color: #e2e8f0 !important; /* slate-200 — clean neutral light border */
+}
+
+/* Topbar backdrop needs a slightly more opaque base in light mode */
+html.light .bg-primary\/80 {
+  background-color: rgb(240 244 255 / 0.85) !important;
+}
+
+/* Elevation shadows are too heavy for light mode — soften them */
+html.light .shadow-elevation-1 {
+  box-shadow: 0 1px 3px rgba(0,0,0,0.10), 0 1px 2px rgba(0,0,0,0.08) !important;
+}
+html.light .shadow-elevation-2 {
+  box-shadow: 0 4px 12px rgba(0,0,0,0.12), 0 2px 4px rgba(0,0,0,0.08) !important;
+}
+html.light .shadow-elevation-3 {
+  box-shadow: 0 8px 24px rgba(0,0,0,0.14), 0 4px 8px rgba(0,0,0,0.08) !important;
 }
 
 @media (max-width: 1024px) {

@@ -1,4 +1,4 @@
-// Settings page — user preferences: default share expiry, auto logout timeout, account & danger zone
+// Settings page — appearance, sharing defaults, security, account & danger zone
 "use client";
 
 import { useState, useEffect, useRef, useCallback } from "react";
@@ -17,29 +17,133 @@ function labelLogout(m: number) {
 }
 
 type SaveStatus = "idle" | "saving" | "saved" | "error";
+type Theme = "dark" | "light";
+
+/* ── Theme helpers ─────────────────────────────────────── */
+
+function getStoredTheme(): Theme {
+  try {
+    const t = localStorage.getItem("vaultx_theme");
+    return t === "light" ? "light" : "dark";
+  } catch {
+    return "dark";
+  }
+}
+
+function applyTheme(theme: Theme) {
+  if (theme === "light") {
+    document.documentElement.classList.add("light");
+  } else {
+    document.documentElement.classList.remove("light");
+  }
+  try {
+    localStorage.setItem("vaultx_theme", theme);
+  } catch {}
+}
+
+/* ── Theme toggle component ────────────────────────────── */
+
+function ThemeToggle({ theme, onChange }: { theme: Theme; onChange: (t: Theme) => void }) {
+  const isLight = theme === "light";
+
+  return (
+    <div className="flex items-center gap-4">
+      {/* Dark option */}
+      <button
+        onClick={() => onChange("dark")}
+        className={`flex flex-col items-center gap-2 p-3 rounded-xl border-2 transition-all focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-accent w-28 ${
+          !isLight
+            ? "border-accent bg-accent/10"
+            : "border-white/10 hover:border-white/20 bg-transparent"
+        }`}
+        aria-pressed={!isLight}
+        aria-label="Dark theme"
+      >
+        {/* Mini dark preview */}
+        <div className="w-full h-14 rounded-md overflow-hidden border border-white/10" style={{ background: "#0A0F1E" }}>
+          <div className="h-3 w-full" style={{ background: "#111827", borderBottom: "1px solid rgba(255,255,255,0.06)" }} />
+          <div className="p-1.5 flex flex-col gap-1">
+            <div className="h-1.5 rounded-full w-3/4" style={{ background: "#1E2A3B" }} />
+            <div className="h-1.5 rounded-full w-1/2" style={{ background: "#1E2A3B" }} />
+          </div>
+        </div>
+        {/* Moon icon */}
+        <div className="flex items-center gap-1.5">
+          <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" aria-hidden="true">
+            <path d="M21 12.79A9 9 0 1 1 11.21 3 7 7 0 0 0 21 12.79z"/>
+          </svg>
+          <span className="text-xs font-medium text-on-surface">Dark</span>
+        </div>
+        {!isLight && (
+          <span className="text-xs text-accent font-semibold">Active</span>
+        )}
+      </button>
+
+      {/* Light option */}
+      <button
+        onClick={() => onChange("light")}
+        className={`flex flex-col items-center gap-2 p-3 rounded-xl border-2 transition-all focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-accent w-28 ${
+          isLight
+            ? "border-accent bg-accent/10"
+            : "border-white/10 hover:border-white/20 bg-transparent"
+        }`}
+        aria-pressed={isLight}
+        aria-label="Light theme"
+      >
+        {/* Mini light preview */}
+        <div className="w-full h-14 rounded-md overflow-hidden border border-black/10" style={{ background: "#F0F4FF" }}>
+          <div className="h-3 w-full" style={{ background: "#FFFFFF", borderBottom: "1px solid #e2e8f0" }} />
+          <div className="p-1.5 flex flex-col gap-1">
+            <div className="h-1.5 rounded-full w-3/4" style={{ background: "#e2e8f0" }} />
+            <div className="h-1.5 rounded-full w-1/2" style={{ background: "#e2e8f0" }} />
+          </div>
+        </div>
+        {/* Sun icon */}
+        <div className="flex items-center gap-1.5">
+          <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" aria-hidden="true">
+            <circle cx="12" cy="12" r="5"/>
+            <line x1="12" y1="1" x2="12" y2="3"/><line x1="12" y1="21" x2="12" y2="23"/>
+            <line x1="4.22" y1="4.22" x2="5.64" y2="5.64"/><line x1="18.36" y1="18.36" x2="19.78" y2="19.78"/>
+            <line x1="1" y1="12" x2="3" y2="12"/><line x1="21" y1="12" x2="23" y2="12"/>
+            <line x1="4.22" y1="19.78" x2="5.64" y2="18.36"/><line x1="18.36" y1="5.64" x2="19.78" y2="4.22"/>
+          </svg>
+          <span className="text-xs font-medium text-on-surface">Light</span>
+        </div>
+        {isLight && (
+          <span className="text-xs text-accent font-semibold">Active</span>
+        )}
+      </button>
+    </div>
+  );
+}
+
+/* ── Main settings page ────────────────────────────────── */
 
 export default function SettingsPage() {
   const { user, loading: authLoading } = useAuth();
   const router = useRouter();
 
+  const [theme, setTheme] = useState<Theme>("dark");
   const [shareExpiry, setShareExpiry] = useState(7);
   const [logoutMins, setLogoutMins] = useState(30);
   const [pageLoading, setPageLoading] = useState(true);
   const [saveStatus, setSaveStatus] = useState<SaveStatus>("idle");
   const [errorMsg, setErrorMsg] = useState("");
 
-  // ref to hold debounce timer
   const debounceRef = useRef<ReturnType<typeof setTimeout> | null>(null);
-  // track whether we've finished the initial load so we don't auto-save on mount
   const initialised = useRef(false);
 
   useEffect(() => {
     if (!authLoading && !user) router.replace("/login");
   }, [user, authLoading, router]);
 
-  /* ── Load preferences from server on mount ─── */
+  /* ── Load preferences on mount ─── */
   useEffect(() => {
     if (!user) return;
+
+    // read current theme from localStorage immediately (already applied by anti-flash script)
+    setTheme(getStoredTheme());
+
     api.getPreferences()
       .then((res: any) => {
         const p = res.preferences;
@@ -58,12 +162,11 @@ export default function SettingsPage() {
       })
       .finally(() => {
         setPageLoading(false);
-        // mark as ready for auto-save AFTER state is set
         setTimeout(() => { initialised.current = true; }, 0);
       });
   }, [user]);
 
-  /* ── Auto-save with 600ms debounce ─── */
+  /* ── Auto-save preferences with 600ms debounce ─── */
   const save = useCallback(async (expiry: number, logout: number) => {
     setSaveStatus("saving");
     setErrorMsg("");
@@ -98,6 +201,12 @@ export default function SettingsPage() {
     scheduleSave(shareExpiry, val);
   }
 
+  /* ── Theme change — instant, no API needed ─── */
+  function handleThemeChange(t: Theme) {
+    setTheme(t);
+    applyTheme(t); // immediately toggles the class on <html>
+  }
+
   if (authLoading || pageLoading) {
     return (
       <div className="flex items-center justify-center min-h-screen bg-primary">
@@ -119,7 +228,7 @@ export default function SettingsPage() {
           <div className="max-w-2xl mx-auto px-8 flex items-center justify-between">
             <h1 className="text-base font-semibold text-on-surface">Settings</h1>
 
-            {/* Auto-save status indicator */}
+            {/* Auto-save status */}
             <div className="flex items-center gap-2 text-sm min-w-[90px] justify-end">
               {saveStatus === "saving" && (
                 <span className="text-on-surface-muted flex items-center gap-1.5">
@@ -147,6 +256,15 @@ export default function SettingsPage() {
           <div className="max-w-2xl mx-auto px-8 space-y-6">
 
             <p className="text-sm text-on-surface-muted">Changes are saved automatically.</p>
+
+            {/* ── Appearance ─────────────────────────── */}
+            <section className="bg-surface border border-white/10 rounded-xl p-6 space-y-5">
+              <div>
+                <h2 className="text-base font-semibold text-on-surface">Appearance</h2>
+                <p className="text-xs text-on-surface-muted mt-0.5">Choose how VaultX looks. Your preference is saved in this browser.</p>
+              </div>
+              <ThemeToggle theme={theme} onChange={handleThemeChange} />
+            </section>
 
             {/* ── Sharing preferences ─────────────────── */}
             <section className="bg-surface border border-white/10 rounded-xl p-6 space-y-5">
