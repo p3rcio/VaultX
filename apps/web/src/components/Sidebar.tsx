@@ -1,11 +1,11 @@
-// Sidebar.tsx — fixed left navigation for authenticated pages
+// Sidebar.tsx — fixed left nav on desktop, slide-in drawer on mobile
 "use client";
 
+import { useState, useEffect } from "react";
 import Link from "next/link";
 import { usePathname } from "next/navigation";
 import { useAuth } from "@/lib/auth-context";
 
-// inline SVG icons — no external icon library needed
 function IconGrid() {
   return (
     <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
@@ -66,84 +66,199 @@ function IconLogout() {
     </svg>
   );
 }
+// hamburger — only shown on mobile
+function IconMenu() {
+  return (
+    <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
+      <line x1="3" y1="6" x2="21" y2="6"/>
+      <line x1="3" y1="12" x2="21" y2="12"/>
+      <line x1="3" y1="18" x2="21" y2="18"/>
+    </svg>
+  );
+}
+function IconX() {
+  return (
+    <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
+      <line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/>
+    </svg>
+  );
+}
 
 const navItems = [
-  { href: "/dashboard", label: "Dashboard", icon: <IconGrid /> },
-  { href: "/shared", label: "My Shares", icon: <IconShare /> },
-  { href: "/shared-with-me", label: "Shared With Me", icon: <IconInbox /> },
-  { href: "/audit", label: "Audit Log", icon: <IconAudit /> },
-  { href: "/settings", label: "Settings", icon: <IconSettings /> },
+  { href: "/dashboard",     label: "Dashboard",      icon: <IconGrid /> },
+  { href: "/shared",        label: "My Shares",       icon: <IconShare /> },
+  { href: "/shared-with-me",label: "Shared With Me",  icon: <IconInbox /> },
+  { href: "/audit",         label: "Audit Log",       icon: <IconAudit /> },
+  { href: "/settings",      label: "Settings",        icon: <IconSettings /> },
 ];
+
+// shared logo markup used in both mobile header and desktop sidebar
+function Logo() {
+  return (
+    <>
+      <div className="w-7 h-7 rounded-md bg-accent flex items-center justify-center text-white flex-shrink-0">
+        <IconLock />
+      </div>
+      <span className="text-base font-bold text-on-surface tracking-tight">
+        Vault<span className="text-accent">X</span>
+      </span>
+    </>
+  );
+}
 
 export default function Sidebar() {
   const pathname = usePathname();
   const { user, logout } = useAuth();
+  const [isOpen, setIsOpen] = useState(false);
+
+  // close the drawer whenever the route changes
+  useEffect(() => {
+    setIsOpen(false);
+  }, [pathname]);
+
+  // Escape key closes the drawer
+  useEffect(() => {
+    function onKey(e: KeyboardEvent) {
+      if (e.key === "Escape") setIsOpen(false);
+    }
+    document.addEventListener("keydown", onKey);
+    return () => document.removeEventListener("keydown", onKey);
+  }, []);
+
+  // prevent the page behind the drawer from scrolling when it's open
+  useEffect(() => {
+    if (isOpen) {
+      document.body.style.overflow = "hidden";
+    } else {
+      document.body.style.overflow = "";
+    }
+    return () => { document.body.style.overflow = ""; };
+  }, [isOpen]);
+
+  const navLinks = (
+    <nav className="flex-1 px-3 space-y-1" aria-label="Site navigation">
+      {navItems.map(({ href, label, icon }) => {
+        const isActive = pathname === href || (href !== "/dashboard" && pathname.startsWith(href + "/"));
+        return (
+          <Link
+            key={href}
+            href={href}
+            aria-current={isActive ? "page" : undefined}
+            className={`flex items-center gap-3 px-3 py-2.5 rounded-md text-sm font-medium transition-colors relative group
+              ${isActive
+                ? "bg-accent/15 text-accent"
+                : "text-on-surface-muted hover:text-on-surface hover:bg-surface-high"
+              }
+              focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-accent focus-visible:ring-offset-2 focus-visible:ring-offset-primary`}
+          >
+            {isActive && (
+              <span className="absolute left-0 top-1/2 -translate-y-1/2 w-0.5 h-5 bg-accent rounded-r-full" aria-hidden="true" />
+            )}
+            <span className={isActive ? "text-accent" : "text-on-surface-muted group-hover:text-on-surface"}>
+              {icon}
+            </span>
+            {label}
+          </Link>
+        );
+      })}
+    </nav>
+  );
+
+  const userSection = (
+    <div className="px-3 py-4 border-t border-white/5">
+      <Link
+        href="/account"
+        className="flex items-center gap-3 px-3 py-2 mb-1 rounded-md hover:bg-surface-high transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-accent"
+        aria-label="My account"
+      >
+        <div className="w-7 h-7 rounded-full bg-accent/20 flex items-center justify-center text-accent text-xs font-bold flex-shrink-0" aria-hidden="true">
+          {user?.email?.[0]?.toUpperCase() ?? "?"}
+        </div>
+        <span className="text-xs text-on-surface-muted truncate flex-1">{user?.email}</span>
+        <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" className="text-on-surface-muted/50 flex-shrink-0" aria-hidden="true">
+          <polyline points="9 18 15 12 9 6"/>
+        </svg>
+      </Link>
+      <button
+        onClick={() => { if (confirm("Are you sure you want to log out?")) logout(); }}
+        className="flex items-center gap-2 w-full px-3 py-2 rounded-md text-sm text-on-surface-muted hover:text-error hover:bg-error/10 transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-error"
+        aria-label="Log out"
+      >
+        <IconLogout />
+        Log out
+      </button>
+    </div>
+  );
 
   return (
-    <aside className="sidebar bg-primary flex flex-col border-r border-white/5 z-30" aria-label="Main navigation">
-      {/* Logo — links back to dashboard */}
-      <Link href="/dashboard" className="px-5 py-6 flex items-center gap-2.5 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-accent rounded-md" aria-label="Go to dashboard">
-        <div className="w-8 h-8 rounded-md bg-accent flex items-center justify-center text-white">
-          <IconLock />
-        </div>
-        <span className="text-lg font-bold text-on-surface tracking-tight">
-          Vault<span className="text-accent">X</span>
-        </span>
-      </Link>
-
-      {/* Nav items */}
-      <nav className="flex-1 px-3 space-y-1" aria-label="Site navigation">
-        {navItems.map(({ href, label, icon }) => {
-          const isActive = pathname === href || (href !== "/dashboard" && pathname.startsWith(href + "/"));
-          return (
-            <Link
-              key={href}
-              href={href}
-              aria-current={isActive ? "page" : undefined}
-              className={`flex items-center gap-3 px-3 py-2.5 rounded-md text-sm font-medium transition-colors relative group
-                ${isActive
-                  ? "bg-accent/15 text-accent"
-                  : "text-on-surface-muted hover:text-on-surface hover:bg-surface-high"
-                }
-                focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-accent focus-visible:ring-offset-2 focus-visible:ring-offset-primary`}
-            >
-              {/* Active left border indicator */}
-              {isActive && (
-                <span className="absolute left-0 top-1/2 -translate-y-1/2 w-0.5 h-5 bg-accent rounded-r-full" aria-hidden="true" />
-              )}
-              <span className={isActive ? "text-accent" : "text-on-surface-muted group-hover:text-on-surface"}>
-                {icon}
-              </span>
-              {label}
-            </Link>
-          );
-        })}
-      </nav>
-
-      {/* Bottom user section */}
-      <div className="px-3 py-4 border-t border-white/5">
-        <Link
-          href="/account"
-          className="flex items-center gap-3 px-3 py-2 mb-1 rounded-md hover:bg-surface-high transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-accent"
-          aria-label="My account"
-        >
-          <div className="w-7 h-7 rounded-full bg-accent/20 flex items-center justify-center text-accent text-xs font-bold flex-shrink-0" aria-hidden="true">
-            {user?.email?.[0]?.toUpperCase() ?? "?"}
-          </div>
-          <span className="text-xs text-on-surface-muted truncate flex-1">{user?.email}</span>
-          <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" className="text-on-surface-muted/50 flex-shrink-0" aria-hidden="true">
-            <polyline points="9 18 15 12 9 6"/>
-          </svg>
+    <>
+      {/* ── Mobile topbar ─────────────────────────────────── */}
+      {/* Fixed strip at the top on small screens — logo left, hamburger right */}
+      <div className="fixed top-0 left-0 right-0 h-14 bg-primary border-b border-white/5 z-40 flex items-center justify-between px-4 lg:hidden">
+        <Link href="/dashboard" className="flex items-center gap-2 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-accent rounded-md px-1" aria-label="Go to dashboard">
+          <Logo />
         </Link>
         <button
-          onClick={() => { if (confirm("Are you sure you want to log out?")) logout(); }}
-          className="flex items-center gap-2 w-full px-3 py-2 rounded-md text-sm text-on-surface-muted hover:text-error hover:bg-error/10 transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-error"
-          aria-label="Log out"
+          onClick={() => setIsOpen(true)}
+          className="p-2 rounded-md text-on-surface-muted hover:text-on-surface hover:bg-surface-high transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-accent"
+          aria-label="Open navigation menu"
+          aria-expanded={isOpen}
+          aria-controls="mobile-drawer"
         >
-          <IconLogout />
-          Log out
+          <IconMenu />
         </button>
       </div>
-    </aside>
+
+      {/* ── Backdrop ──────────────────────────────────────── */}
+      {/* Dims the page behind the open drawer and closes it on tap */}
+      {isOpen && (
+        <div
+          className="fixed inset-0 bg-black/60 backdrop-blur-[2px] z-40 lg:hidden"
+          onClick={() => setIsOpen(false)}
+          aria-hidden="true"
+        />
+      )}
+
+      {/* ── Sidebar / Drawer ──────────────────────────────── */}
+      {/* On desktop: always visible fixed sidebar.
+          On mobile: hidden off-screen, slides in when isOpen is true. */}
+      <aside
+        id="mobile-drawer"
+        className={`sidebar bg-primary flex flex-col border-r border-white/5 z-50${isOpen ? " sidebar-open" : ""}`}
+        aria-label="Main navigation"
+      >
+
+        {/* Mobile-only drawer header with close button */}
+        <div className="flex items-center justify-between px-4 h-14 border-b border-white/5 lg:hidden flex-shrink-0">
+          <Link href="/dashboard" className="flex items-center gap-2 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-accent rounded-md px-1" aria-label="Go to dashboard">
+            <Logo />
+          </Link>
+          <button
+            onClick={() => setIsOpen(false)}
+            className="p-2 rounded-md text-on-surface-muted hover:text-on-surface hover:bg-surface-high transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-accent"
+            aria-label="Close navigation menu"
+          >
+            <IconX />
+          </button>
+        </div>
+
+        {/* Desktop logo — hidden on mobile (drawer header replaces it) */}
+        <Link
+          href="/dashboard"
+          className="hidden lg:flex px-5 py-6 items-center gap-2.5 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-accent rounded-md"
+          aria-label="Go to dashboard"
+        >
+          <div className="w-8 h-8 rounded-md bg-accent flex items-center justify-center text-white">
+            <IconLock />
+          </div>
+          <span className="text-lg font-bold text-on-surface tracking-tight">
+            Vault<span className="text-accent">X</span>
+          </span>
+        </Link>
+
+        {navLinks}
+        {userSection}
+      </aside>
+    </>
   );
 }

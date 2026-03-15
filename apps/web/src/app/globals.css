@@ -55,6 +55,8 @@ body {
   left: 0;
   width: 240px;
   overflow-y: auto;
+  /* transition only matters on mobile — desktop sidebar never moves */
+  transition: transform 0.25s cubic-bezier(0.4, 0, 0.2, 1);
 }
 
 /* ── Main content ─────────────────────────────────────── */
@@ -114,9 +116,22 @@ html.light .shadow-elevation-3 {
 
 @media (max-width: 1024px) {
   .sidebar {
-    display: none;
+    /* slide off-screen instead of display:none so it can animate back in */
+    transform: translateX(-100%);
+    z-index: 50;
+  }
+  /* added by JS when the hamburger is pressed */
+  .sidebar-open {
+    transform: translateX(0) !important;
   }
   .main-with-sidebar {
     margin-left: 0;
+    width: 100%;
+    /* push content below the fixed mobile topbar (h-14 = 3.5rem) */
+    padding-top: 3.5rem;
+  }
+  /* sticky page headers need to sit below the mobile topbar, not behind it */
+  .main-with-sidebar .sticky {
+    top: 3.5rem !important;
   }
 }
