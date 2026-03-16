@@ -251,7 +251,7 @@ router.get("/totp/setup", requireAuth, async (req: Request, res: Response) => {
     const secret = generateSecret();
     const email = userRes.rows[0].email;
     // label is the per-account identifier shown in the app, issuer is the service name
-    const otpauthUri = generateURI({ type: "totp", label: email, issuer: "VaultX", secret });
+    const otpauthUri = generateURI({ label: email, issuer: "VaultX", secret });
 
     // generate the QR code as a base64 PNG so the frontend can just drop it in an <img>
     const qrDataUrl = await QRCode.toDataURL(otpauthUri);
