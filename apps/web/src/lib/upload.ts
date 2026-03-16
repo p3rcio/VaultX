@@ -66,9 +66,11 @@ export async function uploadFile(
     if (record) {
       // resuming — get fresh presigned URLs since the old ones will have expired
       fileId = record.fileId;
-      completedSet = new Set(record.completedChunks);
       const res = await api.getUploadUrls(fileId);
       uploadUrls = res.upload_urls;
+      // use the server's actual S3 state rather than the IndexedDB cache — IndexedDB can be
+      // stale if a previous PUT appeared to succeed but the chunk never made it to R2
+      completedSet = new Set<number>(res.chunks_uploaded ?? []);
       progress.completedChunks = completedSet.size;
       progress.bytesUploaded = completedSet.size * CHUNK_SIZE;
     } else {
