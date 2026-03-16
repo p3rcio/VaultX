@@ -282,6 +282,39 @@ router.get("/:id/download", requireAuth, async (req: Request, res: Response) => 
   }
 });
 
+/* ── PATCH /files/:id — rename a file ───────────────── */
+
+router.patch("/:id", requireAuth, async (req: Request, res: Response) => {
+  try {
+    const { name } = req.body;
+    if (!name || typeof name !== "string" || !name.trim()) {
+      res.status(400).json({ error: "Name is required" });
+      return;
+    }
+    if (name.trim().length > 255) {
+      res.status(400).json({ error: "Name must be 255 characters or fewer" });
+      return;
+    }
+
+    const userId = req.auth!.userId;
+    const result = await pool.query(
+      `UPDATE files SET name = $1 WHERE id = $2 AND owner_id = $3 AND deleted_at IS NULL RETURNING id`,
+      [name.trim(), req.params.id, userId]
+    );
+
+    if (result.rows.length === 0) {
+      res.status(404).json({ error: "File not found" });
+      return;
+    }
+
+    await logAudit(req, "file_renamed", req.params.id);
+    res.json({ ok: true });
+  } catch (err: any) {
+    console.error("[files/rename]", err);
+    res.status(500).json({ error: "Internal server error" });
+  }
+});
+
 /* ── DELETE /files/:id — soft delete ─────────────────── */
 
 router.delete("/:id", requireAuth, async (req: Request, res: Response) => {

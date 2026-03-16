@@ -1,4 +1,4 @@
-// FileUpload.tsx — drag-and-drop upload zone with animated progress queue
+// FileUpload.tsx — drag-and-drop upload zone with name editing before upload starts
 "use client";
 
 import { useState, useRef } from "react";
@@ -9,6 +9,13 @@ import { api } from "@/lib/api";
 
 interface Props {
   onUploadComplete?: () => void;
+}
+
+// files waiting to be uploaded — user can edit the name before starting
+interface StagedFile {
+  id: string; // just a local key for React
+  file: File;
+  name: string;
 }
 
 const statusLabel: Record<string, string> = {
@@ -29,19 +36,39 @@ const statusColor: Record<string, string> = {
 
 export default function FileUpload({ onUploadComplete }: Props) {
   const { umk } = useAuth();
+  const [staged, setStaged] = useState<StagedFile[]>([]);
   const [uploads, setUploads] = useState<UploadProgress[]>([]);
   const [dragOver, setDragOver] = useState(false);
   const inputRef = useRef<HTMLInputElement>(null);
   const abortRef = useRef<AbortController | null>(null);
 
-  async function handleFiles(files: FileList | null) {
-    if (!files || !umk) return;
-
+  function stageFiles(files: FileList | null) {
+    if (!files) return;
+    const valid: StagedFile[] = [];
     for (const file of Array.from(files)) {
       if (file.size > 1024 * 1024 * 1024) {
         alert(`"${file.name}" exceeds the 1 GB limit.`);
         continue;
       }
+      valid.push({ id: `${file.name}-${Date.now()}-${Math.random()}`, file, name: file.name });
+    }
+    setStaged((prev) => [...prev, ...valid]);
+  }
+
+  function updateStagedName(id: string, name: string) {
+    setStaged((prev) => prev.map((s) => s.id === id ? { ...s, name } : s));
+  }
+
+  function removeStagedFile(id: string) {
+    setStaged((prev) => prev.filter((s) => s.id !== id));
+  }
+
+  async function startUploads() {
+    if (!umk || staged.length === 0) return;
+    const toUpload = [...staged];
+    setStaged([]);
+
+    for (const { file, name } of toUpload) {
       abortRef.current = new AbortController();
       try {
         const fileId = await uploadFile(
@@ -49,7 +76,7 @@ export default function FileUpload({ onUploadComplete }: Props) {
           umk,
           (progress) => {
             setUploads((prev) => {
-              const idx = prev.findIndex((u) => u.fileName === file.name);
+              const idx = prev.findIndex((u) => u.fileId === progress.fileId || (u.fileId === "" && u.fileName === progress.fileName));
               if (idx >= 0) {
                 const next = [...prev];
                 next[idx] = progress;
@@ -58,7 +85,8 @@ export default function FileUpload({ onUploadComplete }: Props) {
               return [...prev, progress];
             });
           },
-          abortRef.current.signal
+          abortRef.current.signal,
+          name.trim() || file.name
         );
         const tags = generateTags(file.name, file.type, file.size);
         if (tags.length > 0) await api.setTags(fileId, tags);
@@ -79,7 +107,7 @@ export default function FileUpload({ onUploadComplete }: Props) {
             : "border-on-surface-muted/20 hover:border-accent/50 hover:bg-surface-high/50"}`}
         onDragOver={(e) => { e.preventDefault(); setDragOver(true); }}
         onDragLeave={() => setDragOver(false)}
-        onDrop={(e) => { e.preventDefault(); setDragOver(false); handleFiles(e.dataTransfer.files); }}
+        onDrop={(e) => { e.preventDefault(); setDragOver(false); stageFiles(e.dataTransfer.files); }}
         onClick={() => inputRef.current?.click()}
         role="button"
         tabIndex={0}
@@ -100,10 +128,47 @@ export default function FileUpload({ onUploadComplete }: Props) {
             <p className="text-xs text-on-surface-muted mt-1">Up to 1 GB per file</p>
           </div>
         </div>
-        <input ref={inputRef} type="file" multiple className="hidden" onChange={(e) => handleFiles(e.target.files)} aria-label="File input" />
+        <input ref={inputRef} type="file" multiple className="hidden" onChange={(e) => stageFiles(e.target.files)} aria-label="File input" />
       </div>
 
-      {/* Upload queue */}
+      {/* Staged files — waiting to upload, names are editable */}
+      {staged.length > 0 && (
+        <div className="space-y-2">
+          <h3 className="text-xs font-semibold text-on-surface-muted uppercase tracking-wider px-1">Ready to Upload</h3>
+          {staged.map((s) => (
+            <div key={s.id} className="bg-surface-high rounded-lg border border-white/5 px-4 py-3 flex items-center gap-3">
+              <div className="flex-1 min-w-0">
+                <input
+                  type="text"
+                  value={s.name}
+                  onChange={(e) => updateStagedName(s.id, e.target.value)}
+                  className="w-full bg-surface border border-white/10 rounded px-2.5 py-1.5 text-sm text-on-surface focus:outline-none focus:ring-2 focus:ring-accent focus:border-transparent"
+                  aria-label="File name"
+                  placeholder="File name"
+                />
+                <p className="text-xs text-on-surface-muted mt-1 truncate">{s.file.name} · {(s.file.size / 1024 / 1024).toFixed(1)} MB</p>
+              </div>
+              <button
+                onClick={() => removeStagedFile(s.id)}
+                className="text-on-surface-muted hover:text-error transition-colors shrink-0 p-1 rounded focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-error"
+                aria-label="Remove file"
+              >
+                <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" aria-hidden="true">
+                  <line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/>
+                </svg>
+              </button>
+            </div>
+          ))}
+          <button
+            onClick={startUploads}
+            className="w-full bg-accent hover:bg-accent-hover text-white rounded-md px-5 py-2.5 text-sm font-medium transition-colors active:scale-95 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-offset-2 focus-visible:ring-accent focus-visible:ring-offset-surface"
+          >
+            Upload {staged.length === 1 ? "1 file" : `${staged.length} files`}
+          </button>
+        </div>
+      )}
+
+      {/* Upload queue — active/completed uploads */}
       {uploads.length > 0 && (
         <div className="space-y-2">
           <h3 className="text-xs font-semibold text-on-surface-muted uppercase tracking-wider px-1">Upload Queue</h3>

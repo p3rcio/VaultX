@@ -1,7 +1,7 @@
 // file detail page — two-column layout: metadata on left, actions + tags on right
 "use client";
 
-import { useState, useEffect, useCallback } from "react";
+import { useState, useEffect, useCallback, useRef } from "react";
 import { useRouter, useParams } from "next/navigation";
 import { useAuth } from "@/lib/auth-context";
 import { api } from "@/lib/api";
@@ -66,6 +66,12 @@ export default function FileDetailPage() {
   const [showShare, setShowShare] = useState(false);
   const [downloading, setDownloading] = useState(false);
 
+  // inline rename state — editing toggles between the h1 and an input
+  const [renaming, setRenaming] = useState(false);
+  const [renameDraft, setRenameDraft] = useState("");
+  const [renameError, setRenameError] = useState("");
+  const renameInputRef = useRef<HTMLInputElement>(null);
+
   const fetchFile = useCallback(async () => {
     try {
       const res = await api.getFile(fileId);
@@ -92,6 +98,36 @@ export default function FileDetailPage() {
       alert("Download failed: " + err.message);
     } finally {
       setDownloading(false);
+    }
+  }
+
+  function startRename() {
+    if (!file) return;
+    setRenameDraft(file.name);
+    setRenameError("");
+    setRenaming(true);
+    // focus the input on next render
+    setTimeout(() => renameInputRef.current?.select(), 0);
+  }
+
+  function cancelRename() {
+    setRenaming(false);
+    setRenameError("");
+  }
+
+  async function confirmRename() {
+    const trimmed = renameDraft.trim();
+    if (!trimmed) { setRenameError("Name can't be empty"); return; }
+    if (trimmed.length > 255) { setRenameError("Name too long"); return; }
+    if (trimmed === file?.name) { setRenaming(false); return; }
+
+    try {
+      await api.renameFile(fileId, trimmed);
+      // update local state so the new name shows straight away without a refetch
+      setFile((prev) => prev ? { ...prev, name: trimmed } : prev);
+      setRenaming(false);
+    } catch (err: any) {
+      setRenameError(err.message || "Rename failed");
     }
   }
 
@@ -142,7 +178,7 @@ export default function FileDetailPage() {
           <svg width="14" height="14" className="text-on-surface-muted/50" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" aria-hidden="true">
             <polyline points="9 18 15 12 9 6"/>
           </svg>
-          <span className="text-sm text-on-surface truncate max-w-xs">{file.name}</span>
+          <span className="text-sm text-on-surface truncate max-w-xs">{renaming ? renameDraft || file.name : file.name}</span>
           </div>
         </header>
 
@@ -155,7 +191,54 @@ export default function FileDetailPage() {
               <div className="w-20 h-20 rounded-xl bg-accent/10 flex items-center justify-center text-2xl font-bold text-accent mb-4" aria-hidden="true">
                 {ext}
               </div>
-              <h1 className="text-lg font-semibold text-on-surface text-center break-all">{file.name}</h1>
+              {/* clicking the pencil icon or the name itself puts it into edit mode */}
+              {renaming ? (
+                <div className="w-full max-w-sm space-y-1.5">
+                  <div className="flex items-center gap-2">
+                    <input
+                      ref={renameInputRef}
+                      type="text"
+                      value={renameDraft}
+                      onChange={(e) => { setRenameDraft(e.target.value); setRenameError(""); }}
+                      onKeyDown={(e) => {
+                        if (e.key === "Enter") confirmRename();
+                        if (e.key === "Escape") cancelRename();
+                      }}
+                      className="flex-1 bg-surface-high border border-white/10 rounded px-3 py-1.5 text-sm text-on-surface text-center focus:outline-none focus:ring-2 focus:ring-accent focus:border-transparent"
+                      aria-label="File name"
+                    />
+                  </div>
+                  {renameError && <p className="text-xs text-error text-center">{renameError}</p>}
+                  <div className="flex justify-center gap-2 mt-1">
+                    <button
+                      onClick={confirmRename}
+                      className="text-xs bg-accent hover:bg-accent-hover text-white rounded px-3 py-1 transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-accent"
+                    >
+                      Save
+                    </button>
+                    <button
+                      onClick={cancelRename}
+                      className="text-xs text-on-surface-muted hover:text-on-surface rounded px-3 py-1 transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-accent"
+                    >
+                      Cancel
+                    </button>
+                  </div>
+                </div>
+              ) : (
+                <div className="flex items-center gap-2 group">
+                  <h1 className="text-lg font-semibold text-on-surface text-center break-all">{file.name}</h1>
+                  <button
+                    onClick={startRename}
+                    className="opacity-0 group-hover:opacity-100 focus-visible:opacity-100 text-on-surface-muted hover:text-on-surface transition-opacity focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-accent rounded p-0.5"
+                    aria-label="Rename file"
+                  >
+                    <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
+                      <path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7"/>
+                      <path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z"/>
+                    </svg>
+                  </button>
+                </div>
+              )}
               <p className="text-sm text-on-surface-muted mt-1">{file.mime}</p>
             </div>
 

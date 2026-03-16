@@ -38,14 +38,15 @@ export async function uploadFile(
   file: File,
   umk: CryptoKey,
   onProgress: ProgressCallback,
-  abortSignal?: AbortSignal
+  abortSignal?: AbortSignal,
+  customName?: string
 ): Promise<string> {
   const totalChunks = Math.ceil(file.size / CHUNK_SIZE) || 1;
   const fp = fileFingerprint(file);
 
   const progress: UploadProgress = {
     fileId: "",
-    fileName: file.name,
+    fileName: customName ?? file.name,
     status: "queued",
     totalChunks,
     completedChunks: 0,
@@ -76,7 +77,7 @@ export async function uploadFile(
       const wrappedKey = await wrapFileKey(fileKey, umk);
 
       const res = await api.initUpload({
-        name: file.name,
+        name: customName ?? file.name,
         size: file.size,
         mime: file.type || "application/octet-stream",
         total_chunks: totalChunks,

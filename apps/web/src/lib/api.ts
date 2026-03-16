@@ -72,6 +72,8 @@ export const api = {
   getFile: (id: string) => request(`/files/${id}`),
   downloadFile: (id: string) => request(`/files/${id}/download`),
   deleteFile: (id: string) => request(`/files/${id}`, { method: "DELETE" }),
+  renameFile: (id: string, name: string) =>
+    request(`/files/${id}`, { method: "PATCH", body: JSON.stringify({ name }) }),
 
   /* Tags */
   setTags: (fileId: string, tags: { name: string; confidence: number }[]) =>
