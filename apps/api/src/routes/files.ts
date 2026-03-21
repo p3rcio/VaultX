@@ -1,4 +1,3 @@
-// file upload init, chunk completion, listing, download URL generation, and soft deletion
 import { Router, Request, Response } from "express";
 import { initUploadSchema } from "@vaultx/shared";
 import { pool } from "../db";
@@ -7,8 +6,6 @@ import { logAudit } from "../middleware/audit";
 import { presignedPut, presignedGet, chunkKey, objectExists } from "../s3";
 
 const router = Router();
-
-/* ── POST /files/init — start a new upload ───────────── */
 
 router.post("/init", requireAuth, async (req: Request, res: Response) => {
   try {
@@ -21,7 +18,6 @@ router.post("/init", requireAuth, async (req: Request, res: Response) => {
     const { name, size, mime, total_chunks, wrapped_key } = parsed.data;
     const userId = req.auth!.userId;
 
-    // row starts as 'uploading' and only moves to 'complete' once all chunks are confirmed
     const fileRes = await pool.query(
       `INSERT INTO files (owner_id, name, object_key, size, mime, total_chunks, status)
        VALUES ($1, $2, $3, $4, $5, $6, 'uploading')
@@ -30,19 +26,16 @@ router.post("/init", requireAuth, async (req: Request, res: Response) => {
     );
     const fileId: string = fileRes.rows[0].id;
 
-    // use the file UUID as the S3 prefix so chunks live under "uuid/chunk_xxxxx"
     await pool.query(`UPDATE files SET object_key = $1 WHERE id = $2`, [
       fileId,
       fileId,
     ]);
 
-    // wrapped key goes to the DB — server stores it but can't decrypt it without the UMK
     await pool.query(
       `INSERT INTO file_keys (file_id, wrapped_key) VALUES ($1, $2)`,
       [fileId, wrapped_key]
     );
 
-    // generate one presigned PUT URL per chunk so the browser uploads directly to MinIO
     const upload_urls: { index: number; url: string }[] = [];
     for (let i = 0; i < total_chunks; i++) {
       const url = await presignedPut(chunkKey(fileId, i));
@@ -55,8 +48,6 @@ router.post("/init", requireAuth, async (req: Request, res: Response) => {
     res.status(500).json({ error: "Internal server error" });
   }
 });
-
-/* ── POST /files/:id/upload-urls — fresh URLs for a resumed upload */
 
 router.post("/:id/upload-urls", requireAuth, async (req: Request, res: Response) => {
   try {
@@ -74,7 +65,6 @@ router.post("/:id/upload-urls", requireAuth, async (req: Request, res: Response)
 
     const file = fileRes.rows[0];
 
-    // check which chunks are already in S3 — only generate new URLs for the missing ones
     const chunks_uploaded: number[] = [];
     const upload_urls: { index: number; url: string }[] = [];
 
@@ -95,8 +85,6 @@ router.post("/:id/upload-urls", requireAuth, async (req: Request, res: Response)
   }
 });
 
-/* ── POST /files/:id/complete — mark upload as done ─────── */
-
 router.post("/:id/complete", requireAuth, async (req: Request, res: Response) => {
   try {
     const fileId = req.params.id;
@@ -113,7 +101,6 @@ router.post("/:id/complete", requireAuth, async (req: Request, res: Response) =>
 
     const file = fileRes.rows[0];
 
-    // verify all chunks are actually in S3 before marking as complete
     let uploaded = 0;
     for (let i = 0; i < file.total_chunks; i++) {
       if (await objectExists(chunkKey(fileId, i))) uploaded++;
@@ -139,8 +126,6 @@ router.post("/:id/complete", requireAuth, async (req: Request, res: Response) =>
   }
 });
 
-/* ── GET /files — list the user's files ──────────────── */
-
 router.get("/", requireAuth, async (req: Request, res: Response) => {
   try {
     const userId = req.auth!.userId;
@@ -155,13 +140,11 @@ router.get("/", requireAuth, async (req: Request, res: Response) => {
     `;
     const params: any[] = [userId];
 
-    // ILIKE is case-insensitive LIKE in postgres
     if (search) {
       params.push(`%${search}%`);
       query += ` AND f.name ILIKE $${params.length}`;
     }
 
-    // subquery checks if the file has a tag with this name
     if (tag) {
       params.push(tag);
       query += ` AND EXISTS (
@@ -174,7 +157,6 @@ router.get("/", requireAuth, async (req: Request, res: Response) => {
 
     const result = await pool.query(query, params);
 
-    // fetch tags for all returned files in one query rather than N+1
     const fileIds = result.rows.map((r: any) => r.id);
     let tagsMap: Record<string, { tag_id: string; tag_name: string; confidence: number }[]> = {};
 
@@ -206,8 +188,6 @@ router.get("/", requireAuth, async (req: Request, res: Response) => {
     res.status(500).json({ error: "Internal server error" });
   }
 });
-
-/* ── GET /files/:id — single file with metadata ──────── */
 
 router.get("/:id", requireAuth, async (req: Request, res: Response) => {
   try {
@@ -241,8 +221,6 @@ router.get("/:id", requireAuth, async (req: Request, res: Response) => {
     res.status(500).json({ error: "Internal server error" });
   }
 });
-
-/* ── GET /files/:id/download — presigned URLs for each chunk */
 
 router.get("/:id/download", requireAuth, async (req: Request, res: Response) => {
   try {
@@ -282,8 +260,6 @@ router.get("/:id/download", requireAuth, async (req: Request, res: Response) => 
   }
 });
 
-/* ── PATCH /files/:id — rename a file ───────────────── */
-
 router.patch("/:id", requireAuth, async (req: Request, res: Response) => {
   try {
     const { name } = req.body;
@@ -315,14 +291,11 @@ router.patch("/:id", requireAuth, async (req: Request, res: Response) => {
   }
 });
 
-/* ── DELETE /files/:id — soft delete ─────────────────── */
-
 router.delete("/:id", requireAuth, async (req: Request, res: Response) => {
   try {
     const fileId = req.params.id;
     const userId = req.auth!.userId;
 
-    // soft delete sets deleted_at rather than removing the row — keeps audit history intact
     const result = await pool.query(
       `UPDATE files SET deleted_at = now()
        WHERE id = $1 AND owner_id = $2 AND deleted_at IS NULL

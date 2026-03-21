@@ -1,4 +1,3 @@
-// main dashboard — sidebar + topbar + file card grid
 "use client";
 
 import { useState, useEffect } from "react";
@@ -44,7 +43,6 @@ export default function DashboardPage() {
       <Sidebar />
 
       <div className="main-with-sidebar flex flex-col">
-        {/* Sticky topbar */}
         <header className="sticky top-0 z-20 bg-primary/80 backdrop-blur-sm border-b border-white/5 py-4">
           <div className="max-w-7xl mx-auto px-8 flex items-center gap-4">
             <div className="flex-1">
@@ -58,7 +56,6 @@ export default function DashboardPage() {
                   aria-label="Search files"
                   className="w-full bg-surface border border-white/10 rounded-md pl-9 pr-4 py-2.5 text-sm text-on-surface placeholder:text-on-surface-muted focus:outline-none focus:border-accent focus:ring-1 focus:ring-accent transition-colors"
                   onChange={(_e) => {
-                    // search is handled inside FileList via refreshKey trick — pass via URL or state if needed
                   }}
                 />
               </div>
@@ -74,7 +71,6 @@ export default function DashboardPage() {
           </div>
         </header>
 
-        {/* Upload panel — slides in below topbar */}
         {showUpload && (
           <div className="pt-6">
             <div className="max-w-7xl mx-auto px-8">
@@ -97,7 +93,6 @@ export default function DashboardPage() {
           </div>
         )}
 
-        {/* File grid */}
         <main className="flex-1 py-6">
           <div className="max-w-7xl mx-auto px-8">
             <div className="flex items-center justify-between mb-6">

@@ -1,10 +1,7 @@
-// tests for auth validation schemas and the lockout duration logic
-
 import { registerSchema, loginSchema } from "@vaultx/shared";
 
 describe("Auth validation", () => {
   describe("registerSchema", () => {
-    // base valid payload — spread this and override one field per test
     const valid = {
       email: "alice@example.com",
       password: "SuperSecret!123",
@@ -35,13 +32,11 @@ describe("Auth validation", () => {
       expect(res.success).toBe(false);
     });
 
-    // empty wrapped_umk means no key was generated client-side, which would break decryption
     it("rejects missing wrapped_umk", () => {
       const res = registerSchema.safeParse({ ...valid, wrapped_umk: "" });
       expect(res.success).toBe(false);
     });
 
-    // 100k is the OWASP minimum for PBKDF2-SHA256
     it("rejects kdf_iterations below 100000", () => {
       const res = registerSchema.safeParse({ ...valid, kdf_iterations: 1000 });
       expect(res.success).toBe(false);
@@ -68,7 +63,6 @@ describe("Auth validation", () => {
 });
 
 describe("Lockout duration calculation", () => {
-  // copy of the function from auth.ts so it can be tested without spinning up the server
   function lockoutDuration(failedAttempts: number): number {
     if (failedAttempts < 5) return 0;
     const tier = Math.floor(failedAttempts / 5);
@@ -92,8 +86,7 @@ describe("Lockout duration calculation", () => {
     expect(lockoutDuration(15)).toBe(240000);
   });
 
-  // each tier doubles the wait, so attacking an account gets exponentially slower
   it("doubles each tier", () => {
-    expect(lockoutDuration(20)).toBe(480000); // 8 min
+    expect(lockoutDuration(20)).toBe(480000);
   });
 });

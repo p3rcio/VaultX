@@ -1,27 +1,22 @@
-// reads env vars and exports a typed config object — avoids process.env being scattered everywhere
 import path from "path";
 import fs from "fs";
 
-// throws at startup if a required env var is missing and no fallback was given
 function env(key: string, fallback?: string): string {
   const v = process.env[key] ?? fallback;
   if (v === undefined) throw new Error(`Missing env var: ${key}`);
   return v;
 }
 
-// manual .env parsing instead of using dotenv — keeps the dependency count down
 const envPath = path.resolve(__dirname, "../../../.env");
 if (fs.existsSync(envPath)) {
   const lines = fs.readFileSync(envPath, "utf-8").split("\n");
   for (const line of lines) {
     const trimmed = line.trim();
-    // skip blank lines and comments
     if (!trimmed || trimmed.startsWith("#")) continue;
     const eqIdx = trimmed.indexOf("=");
     if (eqIdx === -1) continue;
     const key = trimmed.slice(0, eqIdx).trim();
     const val = trimmed.slice(eqIdx + 1).trim();
-    // don't overwrite vars already set in the environment (e.g. from docker-compose)
     if (!process.env[key]) process.env[key] = val;
   }
 }

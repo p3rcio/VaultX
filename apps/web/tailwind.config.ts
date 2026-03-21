@@ -2,13 +2,10 @@ import type { Config } from "tailwindcss";
 
 const config: Config = {
   content: ["./src/**/*.{ts,tsx}"],
-  // tell Tailwind to look for a "light" class on <html> for light mode
   darkMode: ["class", '[data-theme="dark"]'],
   theme: {
     extend: {
       colors: {
-        // all colors reference CSS custom properties so both themes work without changing any component code
-        // the <alpha-value> placeholder lets opacity modifiers work: bg-accent/10, text-on-surface/50 etc.
         primary:           "rgb(var(--c-primary) / <alpha-value>)",
         surface:           "rgb(var(--c-surface) / <alpha-value>)",
         "surface-high":    "rgb(var(--c-surface-high) / <alpha-value>)",

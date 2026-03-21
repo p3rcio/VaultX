@@ -1,4 +1,3 @@
-// share link creation, validation by token hash, listing, and disabling
 import { Router, Request, Response } from "express";
 import crypto from "crypto";
 import { createShareSchema } from "@vaultx/shared";
@@ -9,8 +8,6 @@ import { logAudit } from "../middleware/audit";
 import { presignedGet, chunkKey } from "../s3";
 
 const router = Router();
-
-/* ── POST /shares/:fileId/share — create a share link ── */
 
 router.post(
   "/:fileId/share",
@@ -27,7 +24,6 @@ router.post(
       const { file_id, wrapped_key_for_share, expires_in_days } = parsed.data;
       const userId = req.auth!.userId;
 
-      // only the file owner can create a share for it
       const fileRes = await pool.query(
         `SELECT id FROM files WHERE id = $1 AND owner_id = $2 AND deleted_at IS NULL`,
         [file_id, userId]
@@ -37,8 +33,6 @@ router.post(
         return;
       }
 
-      // the client sends a hash of the token, never the raw token
-      // so even if the DB leaks, the share links are useless to an attacker
       const linkTokenHash = req.body.link_token_hash as string;
       if (!linkTokenHash || linkTokenHash.length !== 64) {
         res.status(400).json({ error: "link_token_hash required (64-char hex)" });
@@ -65,7 +59,6 @@ router.post(
         created_at: share.created_at,
       });
     } catch (err: any) {
-      // 23505 = unique constraint violation — two tokens hashed to the same value (incredibly unlikely)
       if (err.code === "23505") {
         res.status(409).json({ error: "Token collision, please retry" });
         return;
@@ -75,8 +68,6 @@ router.post(
     }
   }
 );
-
-/* ── GET /shares/by-token/:hash — validate a share link ─ */
 
 router.get(
   "/by-token/:hash",
@@ -101,7 +92,6 @@ router.get(
 
       const share = shareRes.rows[0];
 
-      // both disabled and expired shares return 403 — not 404 — so it's not obvious whether a link ever existed
       if (share.disabled_at) {
         res.status(403).json({ error: "This share link has been disabled" });
         return;
@@ -117,7 +107,6 @@ router.get(
         return;
       }
 
-      // generate fresh presigned download URLs for each chunk
       const download_urls: { index: number; url: string }[] = [];
       for (let i = 0; i < share.total_chunks; i++) {
         const url = await presignedGet(chunkKey(share.file_id, i));
@@ -126,8 +115,6 @@ router.get(
 
       await logAudit(req, "share_accessed", share.file_id);
 
-      // if the caller is a logged-in user (not the share creator), record this in their
-      // "Shared With Me" list — snapshot file name and sharer email in case they're deleted later
       const viewerId = req.auth?.userId;
       if (viewerId && viewerId !== share.owner_id) {
         const sharerRes = await pool.query(
@@ -161,8 +148,6 @@ router.get(
   }
 );
 
-/* ── GET /shares/mine — list shares created by the current user */
-
 router.get("/mine", requireAuth, async (req: Request, res: Response) => {
   try {
     const userId = req.auth!.userId;
@@ -183,8 +168,6 @@ router.get("/mine", requireAuth, async (req: Request, res: Response) => {
     res.status(500).json({ error: "Internal server error" });
   }
 });
-
-/* ── GET /shares/shared-with-me ──────────────────────── */
 
 router.get("/shared-with-me", requireAuth, async (req: Request, res: Response) => {
   try {
@@ -215,14 +198,11 @@ router.get("/shared-with-me", requireAuth, async (req: Request, res: Response) =
   }
 });
 
-/* ── DELETE /shares/:id — disable a share link ────────── */
-
 router.delete("/:id", requireAuth, async (req: Request, res: Response) => {
   try {
     const shareId = req.params.id;
     const userId = req.auth!.userId;
 
-    // sets disabled_at rather than deleting the row — keeps the audit trail
     const result = await pool.query(
       `UPDATE shares SET disabled_at = now()
        WHERE id = $1 AND created_by = $2 AND disabled_at IS NULL

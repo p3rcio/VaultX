@@ -1,5 +1,3 @@
-// 2FA setup page — shown after registration and any time totp_enabled is false
-// user scans the QR code in their authenticator app then enters the first code to confirm
 "use client";
 
 import { useState, useEffect, FormEvent } from "react";
@@ -18,7 +16,6 @@ export default function SetupTwoFAPage() {
   const [submitting, setSubmitting] = useState(false);
   const [fetchError, setFetchError] = useState("");
 
-  // redirect away if already set up or not logged in
   useEffect(() => {
     if (loading) return;
     if (!user) {
@@ -30,7 +27,6 @@ export default function SetupTwoFAPage() {
     }
   }, [user, loading, router]);
 
-  // fetch QR code from the API as soon as the page loads
   useEffect(() => {
     if (loading || !user || user.totp_enabled) return;
 
@@ -50,7 +46,6 @@ export default function SetupTwoFAPage() {
     setSubmitting(true);
     try {
       const res: any = await api.totpActivate(code);
-      // the server gives back a fresh JWT with totp_enabled: true
       refreshToken(res.token);
       router.push("/dashboard");
     } catch (err: any) {
@@ -73,10 +68,8 @@ export default function SetupTwoFAPage() {
       </div>
 
       <div className="relative w-full max-w-sm">
-        {/* Header */}
         <div className="flex flex-col items-center mb-8">
           <div className="w-12 h-12 rounded-xl bg-accent flex items-center justify-center mb-4 shadow-accent-glow">
-            {/* shield icon */}
             <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="white" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
               <path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z"/>
             </svg>
@@ -98,18 +91,15 @@ export default function SetupTwoFAPage() {
             </div>
           ) : (
             <>
-              {/* Step 1 — scan */}
               <div>
                 <p className="text-xs font-semibold text-on-surface-muted uppercase tracking-wider mb-3">
                   Step 1 — Scan with your authenticator app
                 </p>
                 <div className="flex justify-center">
-                  {/* white background so the QR code is readable on dark themes */}
                   <div className="rounded-lg overflow-hidden p-2 bg-white inline-block">
                     <img src={qrDataUrl} alt="TOTP QR code" width={180} height={180} />
                   </div>
                 </div>
-                {/* manual entry fallback */}
                 {secret && (
                   <p className="text-xs text-on-surface-muted mt-3 text-center break-all">
                     Can't scan?{" "}
@@ -118,7 +108,6 @@ export default function SetupTwoFAPage() {
                 )}
               </div>
 
-              {/* Step 2 — verify */}
               <form onSubmit={handleSubmit} className="space-y-4">
                 <div>
                   <label htmlFor="code" className="block text-xs font-semibold text-on-surface-muted uppercase tracking-wider mb-2">

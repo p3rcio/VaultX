@@ -1,4 +1,3 @@
-// registration page — same gradient as login, adds a password strength bar
 "use client";
 
 import { useState, FormEvent } from "react";
@@ -6,7 +5,6 @@ import { useRouter } from "next/navigation";
 import Link from "next/link";
 import { useAuth } from "@/lib/auth-context";
 
-// password strength: returns 0-4 based on criteria
 function passwordStrength(pwd: string): number {
   let score = 0;
   if (pwd.length >= 8) score++;
@@ -31,7 +29,6 @@ export default function RegisterPage() {
 
   const strength = password ? passwordStrength(password) : -1;
 
-  // client-side check before hitting the API
   function validate(): string | null {
     if (password.length < 12) return "Password must be at least 12 characters.";
     if (!/[^A-Za-z0-9]/.test(password)) return "Password must contain at least 1 special character.";
@@ -47,7 +44,6 @@ export default function RegisterPage() {
     setLoading(true);
     try {
       await register(email, password);
-      // always go to 2FA setup first — it's mandatory
       router.push("/setup-2fa");
     } catch (err: any) {
       setError(err.message || "Registration failed");
@@ -66,7 +62,6 @@ export default function RegisterPage() {
       </div>
 
       <div className="relative w-full max-w-sm">
-        {/* Logo */}
         <div className="flex flex-col items-center mb-8">
           <div className="w-12 h-12 rounded-xl bg-accent flex items-center justify-center mb-4 shadow-accent-glow">
             <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="white" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
@@ -111,7 +106,6 @@ export default function RegisterPage() {
               className="w-full bg-surface-high border border-white/10 rounded-md px-4 py-2.5 text-sm text-on-surface placeholder:text-on-surface-muted focus:outline-none focus:border-accent focus:ring-1 focus:ring-accent transition-colors"
               placeholder="Min 12 chars, 1 special character"
             />
-            {/* Password strength bar */}
             {password && (
               <div className="mt-2 space-y-1" aria-live="polite" aria-label={`Password strength: ${strengthLabel[strength + 1] ?? "Unknown"}`}>
                 <div className="flex gap-1">

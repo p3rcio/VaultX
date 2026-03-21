@@ -1,4 +1,3 @@
-// public share link page — no login needed, decrypts and downloads in the browser
 "use client";
 
 import { useState } from "react";
@@ -14,7 +13,6 @@ export default function ShareLinkPage() {
   async function handleDownload() {
     setError("");
     try {
-      // download.ts handles hashing the token, fetching the share record, and decrypting
       await downloadSharedFile(token, (p) => setProgress({ ...p }));
     } catch (err: any) {
       setError(err.message || "Download failed");

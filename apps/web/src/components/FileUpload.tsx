@@ -1,4 +1,3 @@
-// FileUpload.tsx — drag-and-drop upload zone with name editing before upload starts
 "use client";
 
 import { useState, useRef } from "react";
@@ -11,9 +10,8 @@ interface Props {
   onUploadComplete?: () => void;
 }
 
-// files waiting to be uploaded — user can edit the name before starting
 interface StagedFile {
-  id: string; // just a local key for React
+  id: string;
   file: File;
   name: string;
 }
@@ -99,7 +97,6 @@ export default function FileUpload({ onUploadComplete }: Props) {
 
   return (
     <div className="space-y-4">
-      {/* Drop zone */}
       <div
         className={`relative border-2 border-dashed rounded-lg p-10 text-center cursor-pointer transition-all
           ${dragOver
@@ -131,7 +128,6 @@ export default function FileUpload({ onUploadComplete }: Props) {
         <input ref={inputRef} type="file" multiple className="hidden" onChange={(e) => stageFiles(e.target.files)} aria-label="File input" />
       </div>
 
-      {/* Staged files — waiting to upload, names are editable */}
       {staged.length > 0 && (
         <div className="space-y-2">
           <h3 className="text-xs font-semibold text-on-surface-muted uppercase tracking-wider px-1">Ready to Upload</h3>
@@ -168,7 +164,6 @@ export default function FileUpload({ onUploadComplete }: Props) {
         </div>
       )}
 
-      {/* Upload queue — active/completed uploads */}
       {uploads.length > 0 && (
         <div className="space-y-2">
           <h3 className="text-xs font-semibold text-on-surface-muted uppercase tracking-wider px-1">Upload Queue</h3>
@@ -180,7 +175,6 @@ export default function FileUpload({ onUploadComplete }: Props) {
                   {statusLabel[u.status]}
                 </span>
               </div>
-              {/* Progress bar */}
               <div className="w-full bg-surface rounded-full h-1" aria-hidden="true">
                 <div
                   className="bg-accent h-1 rounded-full progress-bar"

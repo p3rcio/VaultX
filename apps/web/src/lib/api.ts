@@ -1,10 +1,8 @@
-// thin HTTP client for all API calls — handles JWT headers and error responses
-
 const API_URL = process.env.NEXT_PUBLIC_API_URL || "http://localhost:4000";
 const TOKEN_KEY = "vaultx_token";
 
 export function getToken(): string | null {
-  if (typeof window === "undefined") return null; // Next.js runs server-side too, avoid SSR errors
+  if (typeof window === "undefined") return null;
   return localStorage.getItem(TOKEN_KEY);
 }
 
@@ -16,7 +14,6 @@ export function clearToken(): void {
   localStorage.removeItem(TOKEN_KEY);
 }
 
-// every request goes through here so the JWT gets attached automatically
 async function request<T = any>(
   path: string,
   opts: RequestInit = {}
@@ -33,7 +30,7 @@ async function request<T = any>(
     headers,
   });
 
-  const body = await res.json().catch(() => ({})); // empty body just becomes {}
+  const body = await res.json().catch(() => ({}));
 
   if (!res.ok) {
     const msg = body.error || `HTTP ${res.status}`;
@@ -52,14 +49,11 @@ export class ApiError extends Error {
   }
 }
 
-/* ── Auth ─────────────────────────────────────────────── */
-
 export const api = {
   register: (body: any) => request("/auth/register", { method: "POST", body: JSON.stringify(body) }),
   login: (body: any) => request("/auth/login", { method: "POST", body: JSON.stringify(body) }),
   logout: () => request("/auth/logout", { method: "POST" }),
 
-  /* Files */
   initUpload: (body: any) => request("/files/init", { method: "POST", body: JSON.stringify(body) }),
   getUploadUrls: (fileId: string) => request(`/files/${fileId}/upload-urls`, { method: "POST" }),
   completeUpload: (fileId: string) => request(`/files/${fileId}/complete`, { method: "POST" }),
@@ -75,13 +69,11 @@ export const api = {
   renameFile: (id: string, name: string) =>
     request(`/files/${id}`, { method: "PATCH", body: JSON.stringify({ name }) }),
 
-  /* Tags */
   setTags: (fileId: string, tags: { name: string; confidence: number }[]) =>
     request(`/files/${fileId}/tags`, { method: "POST", body: JSON.stringify({ tags }) }),
   removeTag: (fileId: string, tagId: string) =>
     request(`/files/${fileId}/tags/${tagId}`, { method: "DELETE" }),
 
-  /* Shares */
   createShare: (fileId: string, body: any) =>
     request(`/shares/${fileId}/share`, { method: "POST", body: JSON.stringify(body) }),
   getShareByToken: (hash: string) => request(`/shares/by-token/${hash}`),
@@ -89,18 +81,15 @@ export const api = {
   getSharedWithMe: () => request("/shares/shared-with-me"),
   disableShare: (id: string) => request(`/shares/${id}`, { method: "DELETE" }),
 
-  /* Audit */
   getAudit: (limit = 50, offset = 0) =>
     request(`/audit?limit=${limit}&offset=${offset}`),
 
-  /* TOTP / 2FA */
   totpSetup: () => request("/auth/totp/setup"),
   totpActivate: (code: string) =>
     request("/auth/totp/activate", { method: "POST", body: JSON.stringify({ code }) }),
   totpLogin: (pending_token: string, code: string) =>
     request("/auth/totp/login", { method: "POST", body: JSON.stringify({ pending_token, code }) }),
 
-  /* Users */
   getMe: () => request("/users/me"),
   updateDisplayName: (displayName: string) =>
     request("/users/me", { method: "PATCH", body: JSON.stringify({ display_name: displayName }) }),

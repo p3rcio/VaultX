@@ -1,4 +1,3 @@
-// login page — step 1: email+password, step 2: TOTP code (if 2FA is on)
 "use client";
 
 import { useState, FormEvent, useRef } from "react";
@@ -24,11 +23,9 @@ export default function LoginPage() {
     try {
       const result = await login(email, password);
       if (result.totp_required) {
-        // account has 2FA — show the code input
         setTotpStep(true);
         setTimeout(() => codeInputRef.current?.focus(), 50);
       } else {
-        // no 2FA, go straight to setup (it's mandatory, so they'd have been redirected)
         router.push("/dashboard");
       }
     } catch (err: any) {
@@ -64,7 +61,6 @@ export default function LoginPage() {
       </div>
 
       <div className="relative w-full max-w-sm">
-        {/* Logo */}
         <div className="flex flex-col items-center mb-8">
           <div className="w-12 h-12 rounded-xl bg-accent flex items-center justify-center mb-4 shadow-accent-glow">
             <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="white" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
@@ -80,7 +76,6 @@ export default function LoginPage() {
           </p>
         </div>
 
-        {/* Step 1 — email + password */}
         {!totpStep && (
           <form onSubmit={handlePasswordSubmit} className="bg-surface border border-white/8 rounded-xl shadow-elevation-3 p-8 space-y-5">
             <div>
@@ -134,7 +129,6 @@ export default function LoginPage() {
           </form>
         )}
 
-        {/* Step 2 — TOTP code */}
         {totpStep && (
           <form onSubmit={handleTotpSubmit} className="bg-surface border border-white/8 rounded-xl shadow-elevation-3 p-8 space-y-5">
             <div>
@@ -176,7 +170,6 @@ export default function LoginPage() {
               {loading ? "Verifying…" : "Verify"}
             </button>
 
-            {/* let them go back and re-enter their password */}
             <button
               type="button"
               onClick={() => { setTotpStep(false); setError(""); setCode(""); }}

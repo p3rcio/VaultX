@@ -1,16 +1,12 @@
-// returns paginated audit log entries for the authenticated user
 import { Router, Request, Response } from "express";
 import { pool } from "../db";
 import { requireAuth } from "../middleware/auth";
 
 const router = Router();
 
-/* ── GET /audit ──────────────────────────────────────── */
-
 router.get("/", requireAuth, async (req: Request, res: Response) => {
   try {
     const userId = req.auth!.userId;
-    // cap at 200 so nobody can pull the entire audit table in one request
     const limit = Math.min(parseInt((req.query.limit as string) || "50", 10), 200);
     const offset = parseInt((req.query.offset as string) || "0", 10);
 

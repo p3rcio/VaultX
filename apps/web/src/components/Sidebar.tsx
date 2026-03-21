@@ -1,4 +1,3 @@
-// Sidebar.tsx — fixed left nav on desktop, slide-in drawer on mobile
 "use client";
 
 import { useState, useEffect, useRef } from "react";
@@ -66,7 +65,6 @@ function IconLogout() {
     </svg>
   );
 }
-// hamburger — only shown on mobile
 function IconMenu() {
   return (
     <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
@@ -92,7 +90,6 @@ const navItems = [
   { href: "/settings",      label: "Settings",        icon: <IconSettings /> },
 ];
 
-// shared logo markup used in both mobile header and desktop sidebar
 function Logo() {
   return (
     <>
@@ -111,12 +108,10 @@ export default function Sidebar() {
   const { user, logout } = useAuth();
   const [isOpen, setIsOpen] = useState(false);
 
-  // close the drawer whenever the route changes
   useEffect(() => {
     setIsOpen(false);
   }, [pathname]);
 
-  // Escape key closes the drawer
   useEffect(() => {
     function onKey(e: KeyboardEvent) {
       if (e.key === "Escape") setIsOpen(false);
@@ -125,7 +120,6 @@ export default function Sidebar() {
     return () => document.removeEventListener("keydown", onKey);
   }, []);
 
-  // prevent the page behind the drawer from scrolling when it's open
   useEffect(() => {
     if (isOpen) {
       document.body.style.overflow = "hidden";
@@ -135,14 +129,12 @@ export default function Sidebar() {
     return () => { document.body.style.overflow = ""; };
   }, [isOpen]);
 
-  // focus trap for the mobile drawer — Tab cycles through drawer elements only
   const drawerRef = useRef<HTMLElement>(null);
   useEffect(() => {
     if (!isOpen) return;
     const drawer = drawerRef.current;
     if (!drawer) return;
 
-    // move focus into the drawer when it opens
     const closeBtn = drawer.querySelector<HTMLElement>("button[aria-label=\"Close navigation menu\"]");
     closeBtn?.focus();
 
@@ -225,8 +217,6 @@ export default function Sidebar() {
 
   return (
     <>
-      {/* ── Mobile topbar ─────────────────────────────────── */}
-      {/* Fixed strip at the top on small screens — logo left, hamburger right */}
       <div className="fixed top-0 left-0 right-0 h-14 bg-primary border-b border-white/5 z-40 flex items-center justify-between px-4 lg:hidden">
         <Link href="/dashboard" className="flex items-center gap-2 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-accent rounded-md px-1" aria-label="Go to dashboard">
           <Logo />
@@ -242,8 +232,6 @@ export default function Sidebar() {
         </button>
       </div>
 
-      {/* ── Backdrop ──────────────────────────────────────── */}
-      {/* Dims the page behind the open drawer and closes it on tap */}
       {isOpen && (
         <div
           className="fixed inset-0 bg-black/60 backdrop-blur-[2px] z-40 lg:hidden"
@@ -252,9 +240,6 @@ export default function Sidebar() {
         />
       )}
 
-      {/* ── Sidebar / Drawer ──────────────────────────────── */}
-      {/* On desktop: always visible fixed sidebar.
-          On mobile: hidden off-screen, slides in when isOpen is true. */}
       <aside
         ref={drawerRef}
         id="mobile-drawer"
@@ -262,7 +247,6 @@ export default function Sidebar() {
         aria-label="Main navigation"
       >
 
-        {/* Mobile-only drawer header with close button */}
         <div className="flex items-center justify-between px-4 h-14 border-b border-white/5 lg:hidden flex-shrink-0">
           <Link href="/dashboard" className="flex items-center gap-2 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-accent rounded-md px-1" aria-label="Go to dashboard">
             <Logo />
@@ -276,7 +260,6 @@ export default function Sidebar() {
           </button>
         </div>
 
-        {/* Desktop logo — hidden on mobile (drawer header replaces it) */}
         <Link
           href="/dashboard"
           className="hidden lg:flex px-5 py-6 items-center gap-2.5 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-accent rounded-md"

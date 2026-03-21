@@ -1,4 +1,3 @@
-// auth context — holds the logged-in user, the UMK, and exposes login/register/logout
 "use client";
 
 import {
@@ -36,7 +35,6 @@ function getInactivityTimeout(): number {
 }
 const KDF_ITERATIONS = 600_000;
 
-// stored between the two login steps so totpLogin can finish the job
 interface PendingTotp {
   pendingToken: string;
   password: string;
@@ -46,13 +44,10 @@ interface AuthState {
   user: User | null;
   umk: CryptoKey | null;
   loading: boolean;
-  // returns { totp_required: true } if the account has 2FA — caller should then show the code input
   login: (email: string, password: string) => Promise<{ totp_required: boolean }>;
-  // second step — call after login returns totp_required: true
   totpLogin: (code: string) => Promise<void>;
   register: (email: string, password: string) => Promise<void>;
   logout: () => Promise<void>;
-  // call after TOTP setup to swap in the new token that has totp_enabled: true
   refreshToken: (newToken: string) => void;
 }
 
@@ -72,10 +67,8 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   const [umk, setUmk] = useState<CryptoKey | null>(null);
   const [loading, setLoading] = useState(true);
 
-  // kept in a ref so it doesn't trigger re-renders — only used for the brief gap between step 1 and step 2
   const pendingTotpRef = useRef<PendingTotp | null>(null);
 
-  /* ── Inactivity timer ─────────────────────────────── */
   useEffect(() => {
     if (!user) return;
 
@@ -96,10 +89,8 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       clearTimeout(timer);
       events.forEach((e) => window.removeEventListener(e, reset));
     };
-    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [user]);
 
-  /* ── Restore session on mount ─────────────────────── */
   useEffect(() => {
     (async () => {
       try {
@@ -129,7 +120,6 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     })();
   }, []);
 
-  /* ── Register ─────────────────────────────────────── */
   const register = useCallback(async (email: string, password: string) => {
     const salt = generateSalt();
     const kek = await deriveKEK(password, salt, KDF_ITERATIONS);
@@ -150,17 +140,14 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     setUmk(newUmk);
   }, []);
 
-  /* ── Login — step 1 ───────────────────────────────── */
   const login = useCallback(async (email: string, password: string): Promise<{ totp_required: boolean }> => {
     const res = await api.login({ email, password });
 
-    // account has 2FA — stash the pending token and password for step 2
     if (res.totp_required) {
       pendingTotpRef.current = { pendingToken: res.pending_token, password };
       return { totp_required: true };
     }
 
-    // no 2FA — finish login right now
     const kb: KeyBundle = res.key_bundle;
     const salt = fromBase64(kb.kdf_salt);
     const kek = await deriveKEK(password, salt, kb.kdf_iterations);
@@ -174,18 +161,15 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     return { totp_required: false };
   }, []);
 
-  /* ── Login — step 2 (TOTP code) ───────────────────── */
   const totpLogin = useCallback(async (code: string) => {
     const pending = pendingTotpRef.current;
     if (!pending) throw new Error("No pending login — call login() first");
 
-    // exchange the pending token + code for a real JWT + key bundle
     const res = await api.totpLogin(pending.pendingToken, code);
     pendingTotpRef.current = null;
 
     const kb: KeyBundle = res.key_bundle;
     const salt = fromBase64(kb.kdf_salt);
-    // re-derive using the password we held onto from step 1
     const kek = await deriveKEK(pending.password, salt, kb.kdf_iterations);
     const recoveredUmk = await unwrapUMK(kb.wrapped_umk, kek);
 
@@ -195,8 +179,6 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     setUmk(recoveredUmk);
   }, []);
 
-  /* ── Refresh token (called after TOTP setup) ──────── */
-  // the activation endpoint returns a new JWT with totp_enabled: true — swap it in
   const refreshToken = useCallback((newToken: string) => {
     setToken(newToken);
     try {
@@ -205,16 +187,13 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         prev ? { ...prev, totp_enabled: payload.totp_enabled ?? true } : prev
       );
     } catch {
-      // malformed token — just ignore the user update
     }
   }, []);
 
-  /* ── Logout ───────────────────────────────────────── */
   const doLogout = useCallback(async () => {
     try {
       await api.logout();
     } catch {
-      // ignore
     }
     pendingTotpRef.current = null;
     clearToken();

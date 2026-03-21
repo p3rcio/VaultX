@@ -1,8 +1,6 @@
-// register, login, logout, and TOTP setup/activation/login
 import { Router, Request, Response } from "express";
 import bcrypt from "bcryptjs";
 import jwt from "jsonwebtoken";
-// otplib v13 has a different API — no more authenticator object, functions are standalone
 import { generateSecret, generate as totpGenerate, verify as totpVerify, generateURI } from "otplib";
 import QRCode from "qrcode";
 import { registerSchema, loginSchema } from "@vaultx/shared";
@@ -16,17 +14,14 @@ const router = Router();
 
 const BCRYPT_ROUNDS = 12;
 const JWT_EXPIRY = "24h";
-// pending tokens are short-lived — 5 minutes is plenty of time to grab your phone
 const TOTP_PENDING_EXPIRY = "5m";
 
-// lockout doubles after each block of 5 failed attempts
 function lockoutDuration(failedAttempts: number): number {
   if (failedAttempts < 5) return 0;
   const tier = Math.floor(failedAttempts / 5);
   return Math.pow(2, tier - 1) * 60 * 1000;
 }
 
-// helper so we don't repeat the JWT signing config everywhere
 function signFullToken(userId: string, email: string, totpEnabled: boolean): string {
   return jwt.sign(
     { userId, email, totp_enabled: totpEnabled } as AuthPayload,
@@ -34,8 +29,6 @@ function signFullToken(userId: string, email: string, totpEnabled: boolean): str
     { expiresIn: JWT_EXPIRY }
   );
 }
-
-/* ── POST /auth/register ─────────────────────────────── */
 
 router.post("/register", authLimiter, async (req: Request, res: Response) => {
   try {
@@ -68,7 +61,6 @@ router.post("/register", authLimiter, async (req: Request, res: Response) => {
 
     await logAudit(req, "register");
 
-    // totp_enabled is false until they complete setup — JWT carries this so the frontend knows
     const token = signFullToken(userId, email, false);
 
     res.status(201).json({
@@ -81,8 +73,6 @@ router.post("/register", authLimiter, async (req: Request, res: Response) => {
     res.status(500).json({ error: "Internal server error" });
   }
 });
-
-/* ── POST /auth/login ────────────────────────────────── */
 
 router.post("/login", authLimiter, async (req: Request, res: Response) => {
   try {
@@ -135,9 +125,7 @@ router.post("/login", authLimiter, async (req: Request, res: Response) => {
 
     await pool.query(`UPDATE users SET failed_attempts = 0, locked_until = NULL WHERE id = $1`, [user.id]);
 
-    // password is correct — check if TOTP is required before issuing a full token
     if (user.totp_enabled) {
-      // return a short-lived pending token — the client exchanges it + a TOTP code for a real JWT
       const pendingToken = jwt.sign(
         { type: "totp_pending", userId: user.id, email },
         config.jwtSecret,
@@ -147,7 +135,6 @@ router.post("/login", authLimiter, async (req: Request, res: Response) => {
       return;
     }
 
-    // no 2FA yet — issue the full token (frontend will redirect to setup)
     await logAudit(req, "login");
     const token = signFullToken(user.id, email, false);
 
@@ -166,8 +153,6 @@ router.post("/login", authLimiter, async (req: Request, res: Response) => {
   }
 });
 
-/* ── POST /auth/totp/login — exchange pending token + code for a full JWT ── */
-
 router.post("/totp/login", authLimiter, async (req: Request, res: Response) => {
   try {
     const { pending_token, code } = req.body;
@@ -176,7 +161,6 @@ router.post("/totp/login", authLimiter, async (req: Request, res: Response) => {
       return;
     }
 
-    // verify the pending token — it must be signed by us and have the right type
     let payload: any;
     try {
       payload = jwt.verify(pending_token, config.jwtSecret);
@@ -231,8 +215,6 @@ router.post("/totp/login", authLimiter, async (req: Request, res: Response) => {
   }
 });
 
-/* ── GET /auth/totp/setup — generate a secret and return a QR code ────── */
-
 router.get("/totp/setup", requireAuth, async (req: Request, res: Response) => {
   try {
     const userId = req.auth!.userId;
@@ -247,16 +229,12 @@ router.get("/totp/setup", requireAuth, async (req: Request, res: Response) => {
       return;
     }
 
-    // generate a fresh secret every time setup is called — fine since it's not activated yet
     const secret = generateSecret();
     const email = userRes.rows[0].email;
-    // label is the per-account identifier shown in the app, issuer is the service name
     const otpauthUri = generateURI({ label: email, issuer: "VaultX", secret });
 
-    // generate the QR code as a base64 PNG so the frontend can just drop it in an <img>
     const qrDataUrl = await QRCode.toDataURL(otpauthUri);
 
-    // store the secret immediately — it gets confirmed when /totp/activate is called
     await pool.query(`UPDATE users SET totp_secret = $1 WHERE id = $2`, [secret, userId]);
 
     res.json({ qr_data_url: qrDataUrl, secret, otpauth_uri: otpauthUri });
@@ -265,8 +243,6 @@ router.get("/totp/setup", requireAuth, async (req: Request, res: Response) => {
     res.status(500).json({ error: "Internal server error" });
   }
 });
-
-/* ── POST /auth/totp/activate — verify the first code and turn 2FA on ─── */
 
 router.post("/totp/activate", requireAuth, async (req: Request, res: Response) => {
   try {
@@ -303,7 +279,6 @@ router.post("/totp/activate", requireAuth, async (req: Request, res: Response) =
     await pool.query(`UPDATE users SET totp_enabled = true WHERE id = $1`, [userId]);
     await logAudit(req, "2fa_enabled");
 
-    // issue a fresh JWT with totp_enabled: true so the frontend state updates immediately
     const token = signFullToken(userId, user.email, true);
 
     res.json({ ok: true, token });
@@ -312,8 +287,6 @@ router.post("/totp/activate", requireAuth, async (req: Request, res: Response) =
     res.status(500).json({ error: "Internal server error" });
   }
 });
-
-/* ── POST /auth/logout ───────────────────────────────── */
 
 router.post("/logout", requireAuth, async (req: Request, res: Response) => {
   await logAudit(req, "logout");

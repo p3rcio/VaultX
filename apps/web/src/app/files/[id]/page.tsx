@@ -1,4 +1,3 @@
-// file detail page — two-column layout: metadata on left, actions + tags on right
 "use client";
 
 import { useState, useEffect, useCallback, useRef } from "react";
@@ -66,7 +65,6 @@ export default function FileDetailPage() {
   const [showShare, setShowShare] = useState(false);
   const [downloading, setDownloading] = useState(false);
 
-  // inline rename state — editing toggles between the h1 and an input
   const [renaming, setRenaming] = useState(false);
   const [renameDraft, setRenameDraft] = useState("");
   const [renameError, setRenameError] = useState("");
@@ -77,7 +75,6 @@ export default function FileDetailPage() {
       const res = await api.getFile(fileId);
       setFile(res.file);
     } catch {
-      // file not found or doesn't belong to this user — back to dashboard
       router.replace("/dashboard");
     } finally {
       setLoading(false);
@@ -106,7 +103,6 @@ export default function FileDetailPage() {
     setRenameDraft(file.name);
     setRenameError("");
     setRenaming(true);
-    // focus the input on next render
     setTimeout(() => renameInputRef.current?.select(), 0);
   }
 
@@ -123,7 +119,6 @@ export default function FileDetailPage() {
 
     try {
       await api.renameFile(fileId, trimmed);
-      // update local state so the new name shows straight away without a refetch
       setFile((prev) => prev ? { ...prev, name: trimmed } : prev);
       setRenaming(false);
     } catch (err: any) {
@@ -134,7 +129,6 @@ export default function FileDetailPage() {
   async function handleDelete() {
     if (!confirm("Delete this file?")) return;
     try {
-      // soft delete — sets deleted_at so the file is hidden but not permanently gone
       await api.deleteFile(fileId);
       router.push("/dashboard");
     } catch (err: any) {
@@ -155,7 +149,6 @@ export default function FileDetailPage() {
 
   if (!file) return null;
 
-  // get a coloured background for the file type display
   const ext = file.name.split(".").pop()?.toUpperCase() ?? "FILE";
 
   return (
@@ -163,7 +156,6 @@ export default function FileDetailPage() {
       <Sidebar />
 
       <div className="main-with-sidebar">
-        {/* Topbar breadcrumb */}
         <header className="sticky top-0 z-20 bg-primary/80 backdrop-blur-sm border-b border-white/5 py-4">
           <div className="max-w-7xl mx-auto px-8 flex items-center gap-2">
           <button
@@ -182,16 +174,13 @@ export default function FileDetailPage() {
           </div>
         </header>
 
-        {/* Two-column content */}
         <main className="py-8">
           <div className="max-w-5xl mx-auto px-8 grid grid-cols-1 lg:grid-cols-3 gap-6">
-          {/* Left: file icon + metadata */}
           <div className="lg:col-span-2 space-y-6">
             <div className="bg-surface rounded-lg border border-white/5 p-8 flex flex-col items-center justify-center min-h-[200px]">
               <div className="w-20 h-20 rounded-xl bg-accent/10 flex items-center justify-center text-2xl font-bold text-accent mb-4" aria-hidden="true">
                 {ext}
               </div>
-              {/* clicking the pencil icon or the name itself puts it into edit mode */}
               {renaming ? (
                 <div className="w-full max-w-sm space-y-1.5">
                   <div className="flex items-center gap-2">
@@ -242,7 +231,6 @@ export default function FileDetailPage() {
               <p className="text-sm text-on-surface-muted mt-1">{file.mime}</p>
             </div>
 
-            {/* Metadata table */}
             <div className="bg-surface rounded-lg border border-white/5 overflow-hidden">
               <div className="px-5 py-3 border-b border-white/5">
                 <h2 className="text-sm font-semibold text-on-surface">File Details</h2>
@@ -263,9 +251,7 @@ export default function FileDetailPage() {
             </div>
           </div>
 
-          {/* Right: actions + tags */}
           <div className="space-y-4">
-            {/* Actions card */}
             <div className="bg-surface rounded-lg border border-white/5 p-5 space-y-3">
               <h2 className="text-sm font-semibold text-on-surface">Actions</h2>
               <button
@@ -292,7 +278,6 @@ export default function FileDetailPage() {
               </button>
             </div>
 
-            {/* Tags card */}
             <div className="bg-surface rounded-lg border border-white/5 p-5">
               <h2 className="text-sm font-semibold text-on-surface mb-3">Tags</h2>
               <TagEditor fileId={file.id} tags={file.tags} onUpdate={fetchFile} />

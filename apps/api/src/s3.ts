@@ -1,4 +1,3 @@
-// MinIO/S3 client, bucket setup, and presigned URL helpers
 import {
   S3Client,
   CreateBucketCommand,
@@ -15,27 +14,23 @@ import { config } from "./config";
 
 const { minio } = config;
 
-// MinIO speaks the S3 API so the AWS SDK works fine — just point it at localhost
 export const s3 = new S3Client({
   endpoint: `${minio.useSSL ? "https" : "http"}://${minio.endpoint}:${minio.port}`,
-  region: "us-east-1", // MinIO doesn't care about region but the SDK requires a value
+  region: "us-east-1",
   credentials: {
     accessKeyId: minio.accessKey,
     secretAccessKey: minio.secretKey,
   },
-  forcePathStyle: true, // MinIO needs path-style URLs (host/bucket/key), not subdomain-style
-  // MinIO doesn't support some newer AWS checksum features — these prevent errors
+  forcePathStyle: true,
   requestChecksumCalculation: "WHEN_REQUIRED",
   responseChecksumValidation: "WHEN_REQUIRED",
 });
 
-// creates the bucket on first run and configures CORS so the browser can upload/download directly
 export async function ensureBucket(): Promise<void> {
   try {
     await s3.send(new HeadBucketCommand({ Bucket: minio.bucket }));
     console.log(`[s3] bucket "${minio.bucket}" exists`);
   } catch (headErr: unknown) {
-    // bucket doesn't exist yet, try to create it
     try {
       await s3.send(new CreateBucketCommand({ Bucket: minio.bucket }));
       console.log(`[s3] bucket "${minio.bucket}" created`);
@@ -69,8 +64,6 @@ export async function ensureBucket(): Promise<void> {
   }
 }
 
-// presigned PUT URL lets the browser upload directly to MinIO — the API never touches the bytes
-// valid for 1 hour
 export async function presignedPut(
   objectKey: string,
   expiresIn = 3600
@@ -83,7 +76,6 @@ export async function presignedPut(
   return getSignedUrl(s3, cmd, { expiresIn });
 }
 
-// same idea but for downloads
 export async function presignedGet(
   objectKey: string,
   expiresIn = 3600
@@ -113,7 +105,6 @@ export async function listObjects(prefix: string): Promise<string[]> {
   return (res.Contents ?? []).map((o) => o.Key!);
 }
 
-// chunks are stored as "fileId/chunk_00000" — zero-padded so they sort in the right order
 export function chunkKey(fileId: string, index: number): string {
   return `${fileId}/chunk_${String(index).padStart(5, "0")}`;
 }

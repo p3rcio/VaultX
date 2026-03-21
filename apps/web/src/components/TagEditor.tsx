@@ -1,4 +1,3 @@
-// TagEditor.tsx — inline tag management, add or remove tags in two clicks
 "use client";
 
 import { useState } from "react";
@@ -29,12 +28,10 @@ export default function TagEditor({ fileId, tags, onUpdate }: Props) {
       return;
     }
     setError("");
-    // optimistic update before the API call
     const updated = [...localTags, { tag_id: "", tag_name: name, confidence: 1.0 }];
     setLocalTags(updated);
     setNewTag("");
     try {
-      // send the full updated list — the API replaces all existing tags
       await api.setTags(fileId, updated.map((t) => ({ name: t.tag_name, confidence: t.confidence })));
       onUpdate?.();
     } catch (err: any) {
@@ -43,7 +40,6 @@ export default function TagEditor({ fileId, tags, onUpdate }: Props) {
   }
 
   async function handleRemove(tagName: string) {
-    // filter out the removed tag and push the updated list to the server
     const updated = localTags.filter((t) => t.tag_name !== tagName);
     setLocalTags(updated);
     try {
@@ -56,7 +52,6 @@ export default function TagEditor({ fileId, tags, onUpdate }: Props) {
 
   return (
     <div>
-      {/* Existing tags */}
       <div className="flex flex-wrap gap-2 mb-3">
         {localTags.length === 0 && (
           <span className="text-sm text-on-surface-muted">No tags yet</span>
@@ -81,7 +76,6 @@ export default function TagEditor({ fileId, tags, onUpdate }: Props) {
         ))}
       </div>
 
-      {/* Add tag — type + Enter or click Add */}
       <div className="flex gap-2">
         <input
           type="text"

@@ -1,8 +1,3 @@
-// shared TypeScript types used by both the API and the web app
-// keeping them here means both sides stay in sync automatically
-
-/* ── User ─────────────────────────────────────────────── */
-
 export interface User {
   id: string;
   email: string;
@@ -11,14 +6,11 @@ export interface User {
   totp_enabled: boolean;
 }
 
-// returned on login so the client can re-derive the KEK and unwrap the UMK
 export interface KeyBundle {
-  wrapped_umk: string;   // base64
-  kdf_salt: string;      // base64
+  wrapped_umk: string;
+  kdf_salt: string;
   kdf_iterations: number;
 }
-
-/* ── Files ────────────────────────────────────────────── */
 
 export type FileStatus = "pending" | "uploading" | "complete" | "failed";
 
@@ -38,18 +30,16 @@ export interface FileMeta {
 
 export interface FileKeyRecord {
   file_id: string;
-  wrapped_key: string;  // base64 — file key wrapped with owner UMK, server can't decrypt this
+  wrapped_key: string;
   algo: string;
 }
-
-/* ── Upload ───────────────────────────────────────────── */
 
 export interface InitUploadRequest {
   name: string;
   size: number;
   mime: string;
   total_chunks: number;
-  wrapped_key: string;   // base64 — file key wrapped with the UMK
+  wrapped_key: string;
 }
 
 export interface InitUploadResponse {
@@ -57,22 +47,16 @@ export interface InitUploadResponse {
   upload_urls: { index: number; url: string }[];
 }
 
-// returned when resuming a partial upload — indicates which chunks are already in S3
 export interface ResumeUploadResponse {
   upload_urls: { index: number; url: string }[];
   chunks_uploaded: number[];
 }
 
-/* ── Download ─────────────────────────────────────────── */
-
-// everything the client needs to fetch and decrypt the file
 export interface DownloadPlan {
   file: FileMeta;
   wrapped_key: string;
   download_urls: { index: number; url: string }[];
 }
-
-/* ── Shares ───────────────────────────────────────────── */
 
 export interface ShareRecord {
   id: string;
@@ -86,8 +70,8 @@ export interface ShareRecord {
 
 export interface CreateShareRequest {
   file_id: string;
-  wrapped_key_for_share: string; // file key re-wrapped with the share secret
-  expires_in_days: number;       // 1–30
+  wrapped_key_for_share: string;
+  expires_in_days: number;
 }
 
 export interface ShareDownloadPlan {
@@ -95,8 +79,6 @@ export interface ShareDownloadPlan {
   wrapped_key_for_share: string;
   download_urls: { index: number; url: string }[];
 }
-
-/* ── Tags ─────────────────────────────────────────────── */
 
 export interface Tag {
   id: string;
@@ -106,16 +88,13 @@ export interface Tag {
 export interface FileTag {
   tag_id: string;
   tag_name: string;
-  confidence: number; // 0.0 to 1.0
+  confidence: number;
 }
 
 export interface SetTagsRequest {
   tags: { name: string; confidence: number }[];
 }
 
-/* ── Audit ────────────────────────────────────────────── */
-
-// every key action in the app gets logged with one of these action strings
 export type AuditAction =
   | "register"
   | "login"
@@ -133,15 +112,13 @@ export type AuditAction =
 
 export interface AuditEntry {
   id: string;
-  user_id: string | null; // null for unauthenticated actions like share_accessed
+  user_id: string | null;
   action: AuditAction;
   file_id: string | null;
   ip: string;
   user_agent: string;
   ts: string;
 }
-
-/* ── Auth ─────────────────────────────────────────────── */
 
 export interface RegisterRequest {
   email: string;

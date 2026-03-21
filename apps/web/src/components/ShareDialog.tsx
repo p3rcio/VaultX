@@ -1,4 +1,3 @@
-// ShareDialog.tsx — modal for creating share links, full zero-knowledge key wrapping flow
 "use client";
 
 import { useState, useEffect, useRef } from "react";
@@ -21,7 +20,6 @@ interface Props {
 export default function ShareDialog({ fileId, wrappedKey, onClose, onCreated }: Props) {
   const { umk } = useAuth();
 
-  // read the user's saved default expiry from localStorage (set in Settings page)
   function getDefaultDays(): number {
     try {
       const saved = localStorage.getItem("vaultx_share_expiry_days");
@@ -43,22 +41,16 @@ export default function ShareDialog({ fileId, wrappedKey, onClose, onCreated }: 
     setLoading(true);
     setError("");
     try {
-      // step 1: recover the file key using the user's master key
       const fileKey = await unwrapFileKey(wrappedKey, umk);
-      // step 2: generate a random 32-byte secret for the share URL
       const { raw, token } = generateShareSecret();
-      // step 3: wrap the file key with the share secret
       const wrappedForShare = await wrapFileKeyForShare(fileKey, raw);
-      // step 4: hash the secret — DB stores hash, never the raw token
       const tokenHash = await hashShareToken(raw);
-      // step 5: save the share record to the server
       await api.createShare(fileId, {
         file_id: fileId,
         wrapped_key_for_share: wrappedForShare,
         expires_in_days: days,
         link_token_hash: tokenHash,
       });
-      // step 6: the raw token lives in the URL only — anyone with this link can decrypt
       setShareUrl(`${window.location.origin}/s/${token}`);
       onCreated?.();
     } catch (err: any) {
@@ -76,12 +68,10 @@ export default function ShareDialog({ fileId, wrappedKey, onClose, onCreated }: 
 
   const dialogRef = useRef<HTMLDivElement>(null);
 
-  // focus trap + escape handler — keeps Tab cycling inside the dialog
   useEffect(() => {
     const dialog = dialogRef.current;
     if (!dialog) return;
 
-    // put focus on the first interactive element when the dialog opens or content changes
     const first = dialog.querySelector<HTMLElement>(
       "select, input, button, [href], textarea, [tabindex]:not([tabindex=\"-1\"])"
     );

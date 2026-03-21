@@ -1,4 +1,3 @@
-// root page — redirects to dashboard if logged in, login if not
 "use client";
 
 import { useEffect } from "react";

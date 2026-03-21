@@ -1,4 +1,3 @@
-// server entry point — sets up Express, runs DB migrations, then starts listening
 import express from "express";
 import cors from "cors";
 import helmet from "helmet";
@@ -14,32 +13,24 @@ import auditRoutes from "./routes/audit";
 import userRoutes from "./routes/users";
 
 async function main() {
-  // tables need to exist before anything else runs
   await runMigrations();
-
-  // create the MinIO bucket if it doesn't already exist
   await ensureBucket();
 
   const app = express();
 
-  // helmet sets a bunch of secure response headers with sensible defaults
   app.use(helmet());
-  // without CORS the browser blocks requests from localhost:3000
   app.use(cors({ origin: config.corsOrigin, credentials: true }));
-  // file bytes go via presigned S3 URLs, so 1MB is plenty for JSON bodies
   app.use(express.json({ limit: "1mb" }));
 
-  // quick health check to confirm the server is up
   app.get("/health", (_req, res) => res.json({ status: "ok" }));
 
   app.use("/auth", authRoutes);
   app.use("/files", fileRoutes);
   app.use("/shares", shareRoutes);
-  app.use("/files", tagRoutes);       // tag routes are nested under /files/:id/tags
+  app.use("/files", tagRoutes);
   app.use("/audit", auditRoutes);
   app.use("/users", userRoutes);
 
-  // any unhandled route error falls through here and returns a generic 500
   app.use(
     (
       err: Error,
@@ -62,7 +53,6 @@ main().catch((err) => {
   process.exit(1);
 });
 
-// close the DB pool on SIGTERM so docker-compose down doesn't hang
 process.on("SIGTERM", async () => {
   await pool.end();
   process.exit(0);

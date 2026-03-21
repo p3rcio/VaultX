@@ -1,5 +1,3 @@
-// tests for share validation, token hashing behaviour, and expiry/disabled logic
-
 import crypto from "crypto";
 import { createShareSchema } from "@vaultx/shared";
 
@@ -15,7 +13,6 @@ describe("Share validation", () => {
       expect(createShareSchema.safeParse(valid).success).toBe(true);
     });
 
-    // 30 days is the upper cap — no permanent links
     it("rejects expires_in_days > 30", () => {
       const res = createShareSchema.safeParse({ ...valid, expires_in_days: 31 });
       expect(res.success).toBe(false);
@@ -26,7 +23,6 @@ describe("Share validation", () => {
       expect(res.success).toBe(false);
     });
 
-    // file_id must be a valid UUID for the DB foreign key to work
     it("rejects non-uuid file_id", () => {
       const res = createShareSchema.safeParse({ ...valid, file_id: "not-a-uuid" });
       expect(res.success).toBe(false);
@@ -35,7 +31,6 @@ describe("Share validation", () => {
 });
 
 describe("Token hashing", () => {
-  // SHA-256 should always produce the same 64-char hex for the same input
   it("produces consistent SHA-256 hex digest", () => {
     const secret = crypto.randomBytes(32);
     const hash1 = crypto.createHash("sha256").update(secret).digest("hex");
@@ -55,20 +50,19 @@ describe("Token hashing", () => {
 
 describe("Share link expiry logic", () => {
   it("returns 403 semantics for expired links", () => {
-    const expiresAt = new Date(Date.now() - 1000); // 1 second ago
+    const expiresAt = new Date(Date.now() - 1000);
     const isExpired = expiresAt < new Date();
     expect(isExpired).toBe(true);
   });
 
   it("active link passes expiry check", () => {
-    const expiresAt = new Date(Date.now() + 7 * 24 * 60 * 60 * 1000); // 7 days from now
+    const expiresAt = new Date(Date.now() + 7 * 24 * 60 * 60 * 1000);
     const isExpired = expiresAt < new Date();
     expect(isExpired).toBe(false);
   });
 
-  // disabled_at being non-null is enough to reject the link regardless of expiry
   it("disabled link is rejected regardless of expiry", () => {
     const disabledAt = new Date();
-    expect(disabledAt).toBeTruthy(); // disabled_at !== null → reject
+    expect(disabledAt).toBeTruthy();
   });
 });

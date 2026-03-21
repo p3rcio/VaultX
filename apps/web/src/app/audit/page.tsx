@@ -1,4 +1,3 @@
-// audit log page — security event history with colour-coded action badges
 "use client";
 
 import { useState, useEffect } from "react";
@@ -17,7 +16,6 @@ interface AuditEntry {
   ts: string;
 }
 
-// colour-coded badges make it quicker to scan the log visually
 const actionColors: Record<string, string> = {
   login: "text-success bg-success/10",
   logout: "text-on-surface-muted bg-surface-high",

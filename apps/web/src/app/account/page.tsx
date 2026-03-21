@@ -1,4 +1,3 @@
-// account page — display name, password change, and permanent account deletion
 "use client";
 
 import { useState, useEffect } from "react";
@@ -26,14 +25,12 @@ export default function AccountPage() {
   const [profile, setProfile] = useState<Profile | null>(null);
   const [loading, setLoading] = useState(true);
 
-  // display name
   const [editingName, setEditingName] = useState(false);
   const [nameInput, setNameInput] = useState("");
   const [nameSaving, setNameSaving] = useState(false);
   const [nameSuccess, setNameSuccess] = useState(false);
   const [nameError, setNameError] = useState("");
 
-  // change password
   const [currentPwd, setCurrentPwd] = useState("");
   const [newPwd, setNewPwd] = useState("");
   const [confirmPwd, setConfirmPwd] = useState("");
@@ -41,7 +38,6 @@ export default function AccountPage() {
   const [pwdSuccess, setPwdSuccess] = useState(false);
   const [pwdError, setPwdError] = useState("");
 
-  // delete account
   const [deleteText, setDeleteText] = useState("");
   const [deleting, setDeleting] = useState(false);
   const [deleteError, setDeleteError] = useState("");
@@ -88,8 +84,6 @@ export default function AccountPage() {
     setPwdError("");
     setPwdSuccess(false);
     try {
-      // re-wrap the existing UMK under a fresh KEK derived from the new password
-      // the server never sees the plaintext UMK or either KEK
       const newSalt = generateSalt();
       const newKek = await deriveKEK(newPwd, newSalt, KDF_ITERATIONS);
       const newWrappedUmk = await wrapUMK(umk, newKek);
@@ -118,7 +112,6 @@ export default function AccountPage() {
     setDeleteError("");
     try {
       await api.deleteAccount();
-      // logout clears the JWT and UMK from session
       await logout();
     } catch (err: any) {
       setDeleteError(err.message);
@@ -166,13 +159,11 @@ export default function AccountPage() {
         <main className="py-8">
           <div className="max-w-3xl mx-auto px-8 space-y-6">
 
-            {/* Profile card */}
             <div className="bg-surface rounded-lg border border-white/5 overflow-hidden">
               <div className="px-6 py-4 border-b border-white/5">
                 <h2 className="text-sm font-semibold text-on-surface">Profile</h2>
               </div>
               <div className="p-6 space-y-5">
-                {/* Avatar + summary */}
                 <div className="flex items-center gap-4">
                   <div className="w-14 h-14 rounded-xl bg-accent/20 flex items-center justify-center text-accent text-xl font-bold flex-shrink-0" aria-hidden="true">
                     {initial}
@@ -188,7 +179,6 @@ export default function AccountPage() {
                   </div>
                 </div>
 
-                {/* Display name */}
                 <div>
                   <p className="text-xs font-semibold text-on-surface-muted uppercase tracking-wider mb-2">Display Name</p>
                   {editingName ? (
@@ -234,7 +224,6 @@ export default function AccountPage() {
                   {nameSuccess && <p className="text-success text-xs mt-1.5">Display name updated.</p>}
                 </div>
 
-                {/* Email (read-only) */}
                 <div>
                   <p className="text-xs font-semibold text-on-surface-muted uppercase tracking-wider mb-2">Email Address</p>
                   <p className="text-sm text-on-surface">{profile?.email || user?.email}</p>
@@ -243,7 +232,6 @@ export default function AccountPage() {
               </div>
             </div>
 
-            {/* Change password card */}
             <div className="bg-surface rounded-lg border border-white/5 overflow-hidden">
               <div className="px-6 py-4 border-b border-white/5">
                 <h2 className="text-sm font-semibold text-on-surface">Change Password</h2>
@@ -317,7 +305,6 @@ export default function AccountPage() {
               </div>
             </div>
 
-            {/* Danger zone */}
             <div id="danger" className="bg-surface rounded-lg border border-error/30 overflow-hidden">
               <div className="px-6 py-4 border-b border-error/20">
                 <h2 className="text-sm font-semibold text-error">Danger Zone</h2>

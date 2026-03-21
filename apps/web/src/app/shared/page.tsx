@@ -1,4 +1,3 @@
-// shared links page — tabbed view of active and expired share links
 "use client";
 
 import { useState, useEffect } from "react";
@@ -24,7 +23,6 @@ function ExpiryBadge({ share }: { share: Share }) {
   const expired = isExpired(share);
   const disabled = !!share.disabled_at;
 
-  // days until expiry for "expiring soon" state
   const daysLeft = Math.ceil((new Date(share.expires_at).getTime() - Date.now()) / (1000 * 60 * 60 * 24));
 
   if (disabled) return <span className="text-xs font-medium rounded-full px-2.5 py-0.5 bg-error/15 text-error">Disabled</span>;
@@ -93,7 +91,6 @@ export default function SharedPage() {
 
         <main className="py-8">
           <div className="max-w-4xl mx-auto px-8">
-          {/* Underline tabs */}
           <div className="flex gap-6 border-b border-white/10 mb-6" role="tablist">
             <button
               id="tab-active-shares"

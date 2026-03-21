@@ -1,4 +1,3 @@
-// shared-with-me page — shows share links from other users that the current user has accessed
 "use client";
 
 import { useState, useEffect } from "react";
@@ -87,7 +86,6 @@ export default function SharedWithMePage() {
         <main className="py-8">
           <div className="max-w-4xl mx-auto px-8">
 
-            {/* Tabs */}
             <div className="flex gap-6 border-b border-white/10 mb-6" role="tablist">
               <button
                 id="tab-active-swm"
@@ -161,7 +159,6 @@ export default function SharedWithMePage() {
                       className="bg-surface rounded-lg border border-white/5 px-5 py-4 hover:border-white/10 transition-colors"
                     >
                       <div className="flex items-center gap-4">
-                        {/* File icon */}
                         <div className="w-9 h-9 rounded-md bg-accent/10 flex items-center justify-center flex-shrink-0" aria-hidden="true">
                           <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="#2563EB" strokeWidth="2">
                             <path d="M13 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V9z"/>
@@ -169,7 +166,6 @@ export default function SharedWithMePage() {
                           </svg>
                         </div>
 
-                        {/* File info */}
                         <div className="flex-1 min-w-0">
                           <p className="text-sm font-medium text-on-surface truncate">
                             {entry.file_name_snapshot}
@@ -186,13 +182,11 @@ export default function SharedWithMePage() {
                           </p>
                         </div>
 
-                        {/* Status badge */}
                         <div className="flex-shrink-0">
                           <StatusBadge entry={entry} />
                         </div>
                       </div>
 
-                      {/* Active: hint about the original link (can't reconstruct URL — ZK constraint) */}
                       {active && (
                         <div className="mt-3 ml-13 pl-[52px]">
                           <p className="text-xs text-on-surface-muted bg-surface-high rounded-md px-3 py-2">

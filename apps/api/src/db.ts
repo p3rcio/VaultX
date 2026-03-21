@@ -1,4 +1,3 @@
-// postgres connection pool and migration runner
 import { Pool } from "pg";
 import fs from "fs";
 import path from "path";
@@ -6,7 +5,6 @@ import { config } from "./config";
 
 export const pool = new Pool({ connectionString: config.databaseUrl });
 
-// postgres takes a moment to start inside docker so retry with increasing delays before giving up
 async function waitForDb(maxRetries = 10, delayMs = 1000): Promise<void> {
   for (let i = 1; i <= maxRetries; i++) {
     try {
@@ -20,7 +18,6 @@ async function waitForDb(maxRetries = 10, delayMs = 1000): Promise<void> {
   }
 }
 
-// reads and runs the init SQL file — safe to call on every startup because it uses IF NOT EXISTS
 export async function runMigrations(): Promise<void> {
   await waitForDb();
   const sql = fs.readFileSync(

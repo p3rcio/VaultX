@@ -1,4 +1,3 @@
-// FileList.tsx — responsive card grid of files with debounced search and tag filter
 "use client";
 
 import { useState, useEffect, useCallback } from "react";
@@ -18,7 +17,6 @@ interface Props {
   refreshKey?: number;
 }
 
-// maps MIME type to a coloured badge label
 function fileTypeBadge(mime: string): { label: string; color: string } {
   if (mime.includes("pdf")) return { label: "PDF", color: "bg-red-500/15 text-red-400" };
   if (mime.startsWith("image/")) return { label: "IMG", color: "bg-accent/15 text-accent" };
@@ -69,7 +67,6 @@ export default function FileList({ refreshKey }: Props) {
 
   useEffect(() => { fetchFiles(); }, [fetchFiles, refreshKey]);
 
-  // debounce search — wait 300ms after typing before firing API
   useEffect(() => {
     const timer = setTimeout(() => setSearch(searchInput), 300);
     return () => clearTimeout(timer);
@@ -89,7 +86,6 @@ export default function FileList({ refreshKey }: Props) {
 
   return (
     <div>
-      {/* Filter bar */}
       <div className="flex flex-col sm:flex-row gap-3 mb-6">
         <div className="relative flex-1">
           <svg className="absolute left-3 top-1/2 -translate-y-1/2 text-on-surface-muted" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" aria-hidden="true">
@@ -115,7 +111,6 @@ export default function FileList({ refreshKey }: Props) {
         </select>
       </div>
 
-      {/* Empty state */}
       {files.length === 0 ? (
         <div className="flex flex-col items-center justify-center py-24 text-center">
           <div className="w-16 h-16 rounded-xl bg-accent/10 flex items-center justify-center mb-4" aria-hidden="true">
@@ -128,7 +123,6 @@ export default function FileList({ refreshKey }: Props) {
           <p className="text-sm text-on-surface-muted">Upload your first file using the button above.</p>
         </div>
       ) : (
-        /* Card grid */
         <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-4">
           {files.map((f) => (
             <Link
