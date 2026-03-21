@@ -90,8 +90,10 @@ export default function SharedWithMePage() {
             {/* Tabs */}
             <div className="flex gap-6 border-b border-white/10 mb-6" role="tablist">
               <button
+                id="tab-active-swm"
                 role="tab"
                 aria-selected={activeTab === "active"}
+                aria-controls="panel-swm"
                 onClick={() => setActiveTab("active")}
                 className={`pb-3 text-sm font-medium border-b-2 transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-accent rounded-t
                   ${activeTab === "active"
@@ -106,8 +108,10 @@ export default function SharedWithMePage() {
                 )}
               </button>
               <button
+                id="tab-expired-swm"
                 role="tab"
                 aria-selected={activeTab === "expired"}
+                aria-controls="panel-swm"
                 onClick={() => setActiveTab("expired")}
                 className={`pb-3 text-sm font-medium border-b-2 transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-accent rounded-t
                   ${activeTab === "expired"
@@ -123,6 +127,11 @@ export default function SharedWithMePage() {
               </button>
             </div>
 
+            <div
+              id="panel-swm"
+              role="tabpanel"
+              aria-labelledby={activeTab === "active" ? "tab-active-swm" : "tab-expired-swm"}
+            >
             {displayed.length === 0 ? (
               <div className="flex flex-col items-center justify-center py-20 text-center">
                 <div className="w-14 h-14 rounded-xl bg-accent/10 flex items-center justify-center mb-4" aria-hidden="true">
@@ -196,6 +205,7 @@ export default function SharedWithMePage() {
                 })}
               </div>
             )}
+            </div>
 
           </div>
         </main>

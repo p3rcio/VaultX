@@ -65,6 +65,7 @@ export default function DashboardPage() {
             </div>
             <button
               onClick={() => setShowUpload((v) => !v)}
+              aria-expanded={showUpload}
               className="flex items-center gap-2 bg-accent hover:bg-accent-hover text-white rounded-md px-5 py-2.5 text-sm font-medium transition-colors active:scale-95 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-offset-2 focus-visible:ring-accent focus-visible:ring-offset-primary"
             >
               <IconUpload />

@@ -96,8 +96,10 @@ export default function SharedPage() {
           {/* Underline tabs */}
           <div className="flex gap-6 border-b border-white/10 mb-6" role="tablist">
             <button
+              id="tab-active-shares"
               role="tab"
               aria-selected={activeTab === "active"}
+              aria-controls="panel-shares"
               onClick={() => setActiveTab("active")}
               className={`pb-3 text-sm font-medium border-b-2 transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-accent rounded-t
                 ${activeTab === "active"
@@ -112,8 +114,10 @@ export default function SharedPage() {
               )}
             </button>
             <button
+              id="tab-expired-shares"
               role="tab"
               aria-selected={activeTab === "expired"}
+              aria-controls="panel-shares"
               onClick={() => setActiveTab("expired")}
               className={`pb-3 text-sm font-medium border-b-2 transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-accent rounded-t
                 ${activeTab === "expired"
@@ -129,6 +133,11 @@ export default function SharedPage() {
             </button>
           </div>
 
+          <div
+            id="panel-shares"
+            role="tabpanel"
+            aria-labelledby={activeTab === "active" ? "tab-active-shares" : "tab-expired-shares"}
+          >
           {displayShares.length === 0 ? (
             <div className="flex flex-col items-center justify-center py-20 text-center">
               <div className="w-14 h-14 rounded-xl bg-accent/10 flex items-center justify-center mb-4" aria-hidden="true">
@@ -178,6 +187,7 @@ export default function SharedPage() {
               })}
             </div>
           )}
+          </div>
           </div>
         </main>
       </div>

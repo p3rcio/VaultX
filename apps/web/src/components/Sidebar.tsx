@@ -1,7 +1,7 @@
 // Sidebar.tsx — fixed left nav on desktop, slide-in drawer on mobile
 "use client";
 
-import { useState, useEffect } from "react";
+import { useState, useEffect, useRef } from "react";
 import Link from "next/link";
 import { usePathname } from "next/navigation";
 import { useAuth } from "@/lib/auth-context";
@@ -135,6 +135,39 @@ export default function Sidebar() {
     return () => { document.body.style.overflow = ""; };
   }, [isOpen]);
 
+  // focus trap for the mobile drawer — Tab cycles through drawer elements only
+  const drawerRef = useRef<HTMLElement>(null);
+  useEffect(() => {
+    if (!isOpen) return;
+    const drawer = drawerRef.current;
+    if (!drawer) return;
+
+    // move focus into the drawer when it opens
+    const closeBtn = drawer.querySelector<HTMLElement>("button[aria-label=\"Close navigation menu\"]");
+    closeBtn?.focus();
+
+    function onKeyDown(e: KeyboardEvent) {
+      if (e.key !== "Tab") return;
+      const focusable = drawer!.querySelectorAll<HTMLElement>(
+        "a, button, input, select, textarea, [tabindex]:not([tabindex=\"-1\"])"
+      );
+      if (focusable.length === 0) return;
+      const first = focusable[0];
+      const last = focusable[focusable.length - 1];
+
+      if (e.shiftKey && document.activeElement === first) {
+        e.preventDefault();
+        last.focus();
+      } else if (!e.shiftKey && document.activeElement === last) {
+        e.preventDefault();
+        first.focus();
+      }
+    }
+
+    document.addEventListener("keydown", onKeyDown);
+    return () => document.removeEventListener("keydown", onKeyDown);
+  }, [isOpen]);
+
   const navLinks = (
     <nav className="flex-1 px-3 space-y-1" aria-label="Site navigation">
       {navItems.map(({ href, label, icon }) => {
@@ -223,6 +256,7 @@ export default function Sidebar() {
       {/* On desktop: always visible fixed sidebar.
           On mobile: hidden off-screen, slides in when isOpen is true. */}
       <aside
+        ref={drawerRef}
         id="mobile-drawer"
         className={`sidebar bg-primary flex flex-col border-r border-white/5 z-50${isOpen ? " sidebar-open" : ""}`}
         aria-label="Main navigation"

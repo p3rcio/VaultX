@@ -1,7 +1,7 @@
 // ShareDialog.tsx — modal for creating share links, full zero-knowledge key wrapping flow
 "use client";
 
-import { useState } from "react";
+import { useState, useEffect, useRef } from "react";
 import { useAuth } from "@/lib/auth-context";
 import { api } from "@/lib/api";
 import {
@@ -74,12 +74,50 @@ export default function ShareDialog({ fileId, wrappedKey, onClose, onCreated }: 
     setTimeout(() => setCopied(false), 2000);
   }
 
+  const dialogRef = useRef<HTMLDivElement>(null);
+
+  // focus trap + escape handler — keeps Tab cycling inside the dialog
+  useEffect(() => {
+    const dialog = dialogRef.current;
+    if (!dialog) return;
+
+    // put focus on the first interactive element when the dialog opens or content changes
+    const first = dialog.querySelector<HTMLElement>(
+      "select, input, button, [href], textarea, [tabindex]:not([tabindex=\"-1\"])"
+    );
+    first?.focus();
+
+    function onKeyDown(e: KeyboardEvent) {
+      if (e.key === "Escape") { onClose(); return; }
+      if (e.key !== "Tab") return;
+
+      const focusable = dialog!.querySelectorAll<HTMLElement>(
+        "button, [href], input, select, textarea, [tabindex]:not([tabindex=\"-1\"])"
+      );
+      if (focusable.length === 0) return;
+      const firstEl = focusable[0];
+      const lastEl = focusable[focusable.length - 1];
+
+      if (e.shiftKey && document.activeElement === firstEl) {
+        e.preventDefault();
+        lastEl.focus();
+      } else if (!e.shiftKey && document.activeElement === lastEl) {
+        e.preventDefault();
+        firstEl.focus();
+      }
+    }
+
+    document.addEventListener("keydown", onKeyDown);
+    return () => document.removeEventListener("keydown", onKeyDown);
+  }, [onClose, shareUrl]);
+
   return (
     <div
       className="fixed inset-0 bg-black/70 backdrop-blur-sm flex items-center justify-center z-50 px-4"
       onClick={(e) => { if (e.target === e.currentTarget) onClose(); }}
     >
       <div
+        ref={dialogRef}
         className="bg-surface border border-white/10 rounded-xl shadow-elevation-3 p-6 w-full max-w-md"
         role="dialog"
         aria-label="Create share link"

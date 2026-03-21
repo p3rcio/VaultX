@@ -109,7 +109,7 @@ export default function AuditPage() {
                         </td>
                         <td className="py-3 px-5 text-on-surface-muted">
                           {e.file_id ? (
-                            <Link href={`/files/${e.file_id}`} className="text-accent hover:text-accent-hover transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-accent rounded">
+                            <Link href={`/files/${e.file_id}`} className="text-accent hover:text-accent-hover transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-accent rounded" aria-label={`View file ${e.file_id}`}>
                               {e.file_id.slice(0, 8)}…
                             </Link>
                           ) : "—"}
