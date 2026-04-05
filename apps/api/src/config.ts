@@ -24,7 +24,7 @@ if (fs.existsSync(envPath)) {
 export const config = {
   port: parseInt(env("API_PORT", "4000"), 10),
   databaseUrl: env("DATABASE_URL", "postgresql://vaultx:vaultx_secret@localhost:5432/vaultx"),
-  jwtSecret: env("JWT_SECRET", "dev-jwt-secret-change-me"),
+  jwtSecret: env("JWT_SECRET", "dev-jwt-secret"),
   corsOrigin: env("CORS_ORIGIN", "http://localhost:3000"),
 
   minio: {
