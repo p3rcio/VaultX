@@ -36,7 +36,6 @@ export async function ensureBucket(): Promise<void> {
       console.log(`[s3] bucket "${minio.bucket}" created`);
     } catch (createErr: unknown) {
       console.warn(`[s3] could not create bucket: ${(createErr as Error).message}`);
-      console.warn("[s3] please create bucket 'vaultx-files' manually in MinIO console at http://localhost:9001");
     }
   }
 
